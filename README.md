@@ -2,7 +2,7 @@
 
 로컬 PC에서 시장 데이터, 뉴스, 실제 KOSPI200 선물, Signal Engine, Backtest, Calibration을 통합해 **AI Market Signal**을 생성하는 프로젝트입니다.
 
-현재 기준은 **Market AI 1~10차 + KIS eFriend Expert KOSPI200 Futures Bridge 2차**까지 구현된 상태입니다.
+현재 기준은 **Market AI 1~12차 + KIS eFriend Expert KOSPI200 Futures Bridge 2차**까지 구현된 상태입니다.
 
 > 자동 주문 시스템이 아닙니다.  
 > 주문 API, 계좌번호, 계좌 비밀번호를 사용하지 않습니다.
@@ -12,11 +12,13 @@
 ## 현재 상태
 
 ```text
-Market AI 1~10차                    ✅
+Market AI 1~12차                    ✅
 시장 데이터 수집                     ✅
 뉴스 수집                           ✅
 OpenAI 뉴스 분석 코드                ✅
-Signal Engine                       ✅
+Signal Engine                       ✅ stage6_rule_v5
+SOX 현물 전환 / NQ 선물 기준 정리    ✅ 11차
+4개 Rule Signal 직접 입력 재정의     ✅ 12차
 Backtest                            ✅
 Calibration                         ✅
 eFriend Expert C# Bridge            ✅
