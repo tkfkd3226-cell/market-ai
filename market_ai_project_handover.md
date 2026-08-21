@@ -1,8 +1,8 @@
 # Market AI 프로젝트 인수인계
 
-> 기준 시점: 2026-08-22 01:53 KST  
+> 기준 시점: 2026-08-22 06:55 KST  
 > 기준본: 이 문서와 함께 첨부되는 **최신 `market-ai` ZIP**  
-> 현재 다음 작업: **KIS eFriend Expert 주간 `FC_R` 실제 실시간 수신 1회 확인**
+> 현재 다음 작업: **AUTO 휴장일 처리 경계값 QA → KIS eFriend Expert 주간 `FC_R` 실제 실시간 수신 1회 확인**
 
 ---
 
@@ -16,25 +16,26 @@
 4. 현재 다음 작업이 아래임을 짧게 알려준다.
 
 ```text
-KIS eFriend Expert 주간 FC_R 실제 실시간 수신 1회 확인
+AUTO 휴장일 처리 경계값 QA
 ```
 
 5. 답변 마지막에 반드시 아래처럼 안내하고 사용자 입력을 기다린다.
 
 ```text
-다음 요청: 주간 FC_R 확인
+다음 요청: AUTO 휴장일 QA
 ```
 
 권장 응답 예:
 
 ```text
 인수인계 확인 완료.
-현재 다음 작업은 KIS eFriend Expert 주간 FC_R 실제 실시간 수신 1회 확인입니다.
+현재 다음 작업은 AUTO 휴장일 처리 경계값 QA입니다.
+이 QA가 PASS하면 다음 단계는 KIS eFriend Expert 주간 FC_R 실제 실시간 수신 1회 확인입니다.
 
-다음 요청: 주간 FC_R 확인
+다음 요청: AUTO 휴장일 QA
 ```
 
-사용자가 이후 **`주간 FC_R 확인`**이라고 입력하면 주간장 실통신 확인을 진행한다.
+사용자가 이후 **`AUTO 휴장일 QA`**라고 입력하면 KRX 거래일·휴장일·만기일·야간장 경계값 QA를 진행한다. PASS 후에는 **`주간 FC_R 확인`**으로 실제 주간장 실통신을 확인한다.
 
 ---
 
@@ -51,7 +52,7 @@ KIS eFriend Expert 주간 FC_R 실제 실시간 수신 1회 확인
 - 데이터가 없으면 결측으로 두는 것이 잘못된 대체 데이터를 실제값처럼 저장하는 것보다 낫다.
 - 이유: 저장된 시장 데이터가 이후 Signal / Backtest / Calibration의 기준이 되기 때문이다.
 - GitHub는 현재 운영 필수 구성요소가 아니다. 현재 기준 ZIP에는 `.git/`이 없으며, 필요할 때 나중에 다시 연동한다.
-- `main_dashboard_maintenance_handover.md`는 아직 수정하지 않는다. 투자 대시보드 쪽에서 나중에 일괄 반영한다.
+- 투자 대시보드의 `dashboard-market-ai.js`와 CSS 배치/유지보수 규칙은 대시보드 프로젝트의 `main_dashboard_maintenance_handover.md`가 담당한다. 이 문서에는 Market AI 백엔드·Bridge 운영 사실만 유지하고 대시보드 유지보수 규칙을 중복 누적하지 않는다.
 - GitHub 커밋 문구가 필요한 경우:
   - `Summary`: 매우 짧게
   - `Description`: 한 줄 설명
@@ -90,7 +91,8 @@ market-ai/
 ├─ app.py
 ├─ config.py
 ├─ requirements.txt
-├─ start-market-ai.bat
+├─ requirements-openai.txt
+├─ build-kis-bridge-release.bat
 ├─ .env.example
 ├─ README.md
 ├─ market_ai_project_handover.md
@@ -103,7 +105,8 @@ market-ai/
 │
 ├─ backtest/
 ├─ bridges/
-│  └─ kis_efriend.py
+│  ├─ kis_efriend.py
+│  └─ kospi200_contract.py
 ├─ calibration/
 ├─ collectors/
 ├─ db/
@@ -167,7 +170,7 @@ Signal Engine
 
 ---
 
-# 5. Market AI 1~9차 완료 상태
+# 5. Market AI 1~10차 완료 상태
 
 ## 1차 — FastAPI + SQLite ✅
 
@@ -391,6 +394,33 @@ No-lookahead 원칙 유지.
 - 같은 raw score는 같은 calibrated probability
 - 단순 날짜 순서 변경으로 mapping이 달라지지 않음
 
+## 10차 — KOSPI200 AUTO 근월물 / KRX 세션 라우팅 ✅ 구현
+
+고정 종목코드 중심이던 Bridge를 서버 기준 AUTO 라우팅으로 전환했다.
+
+핵심 파일:
+
+```text
+bridges/kospi200_contract.py
+bridges/kis_efriend.py
+KisKospi200Bridge/MainForm.cs
+```
+
+핵심 구현:
+
+- `XKRX` 거래 캘린더 우선 사용
+- 캘린더 범위 밖은 한국 공휴일 + KRX 5월 1일/연말 휴장 fallback
+- 일회성 정규장 휴장/개장일 및 야간장 휴장 override 지원
+- 분기월(3/6/9/12) 실제 최종거래일 계산
+- 명목상 두 번째 목요일이 휴장일이면 직전 거래일까지 만기일 이동
+- 실제 만기일 15:20부터 다음 분기월로 rollover
+- 18:00 야간장은 다음 거래일 소속으로 처리
+- 서버 `/api/bridge/kis-efriend/route-code`가 `종목코드|서비스|세션`을 단일 기준으로 반환
+- C# Bridge AUTO 모드는 이 route를 5초마다 조회해 `FC_R` / `CMEC_R` / `CLOSED`와 종목코드를 함께 전환
+- `MARKET_AI_KIS_KOSPI200_CODE`는 비워두는 것이 기본이며 긴급 고정 override로만 사용
+
+구현은 완료됐지만 **휴장일/만기일/야간장 경계값 QA와 주간 `FC_R` live 실증은 별도 남은 작업**이다.
+
 ---
 
 # 6. 현재 API 범위
@@ -411,6 +441,10 @@ GET  /api/market-data/history/{symbol}
 
 ```text
 GET  /api/bridge/kis-efriend/status
+GET  /api/bridge/kis-efriend/contract
+GET  /api/bridge/kis-efriend/contract-code
+GET  /api/bridge/kis-efriend/route
+GET  /api/bridge/kis-efriend/route-code
 POST /api/bridge/kis-efriend/tick
 POST /api/bridge/kis-efriend/heartbeat
 ```
@@ -498,29 +532,34 @@ x86
 
 eFriend Expert와 Bridge는 관리자 권한 실행 기준으로 사용한다.
 
-## 7.2 현재 KOSPI200 근월물
+## 7.2 KOSPI200 근월물 / AUTO 기준
 
-FML Viewer 실제 조회를 통해 현재 근월물 월 확인:
-
-```text
-609 → 202609
-```
-
-FOPH 실제 조회를 통해 확인한 종목코드:
+FML Viewer와 FOPH로 실제 확인한 2026-09 월물 예시는 다음과 같다.
 
 ```text
-A01609
+월물          2026-09
+종목코드      A01609
 ```
 
-따라서 현재 기준 실제 사용 종목:
+이 값은 **실증 예시**이며 운영 기본값을 고정하는 문서값이 아니다. 현재 기본 운영은:
 
 ```text
-2026-09 KOSPI200 선물
-A01609
+MARKET_AI_KIS_KOSPI200_CODE=
 ```
 
-근월물 rollover는 아직 자동화하지 않았다.
-실제 eFriend 규칙을 추가 검증하기 전에는 종목코드를 추측해서 자동 생성하지 않는다.
+처럼 비워두고 서버가 AUTO로 근월물을 판정한다.
+
+AUTO 기준:
+
+- KRX `XKRX` 거래 캘린더 우선
+- 지원 범위 밖은 한국 공휴일 계산 fallback
+- 분기월의 명목상 두 번째 목요일이 휴장일이면 직전 거래일까지 실제 최종거래일을 앞당김
+- 실제 최종거래일 15:20부터 다음 분기월 사용
+- 18:00 이후 야간장은 다음 거래일 소속
+- 예측 불가능한 일회성 일정은 `MARKET_AI_KRX_CLOSED_DATES`, `MARKET_AI_KRX_OPEN_DATES`, `MARKET_AI_KRX_NIGHT_CLOSED_DATES`로 override
+- 종목코드 고정은 긴급 상황에서만 `MARKET_AI_KIS_KOSPI200_CODE` 사용
+
+따라서 과거처럼 월물 변경 때 문서/설정의 `A01609`를 수동 갱신하는 방식은 현재 canonical 운영 방식이 아니다.
 
 ## 7.3 실시간 서비스
 
@@ -599,14 +638,18 @@ eFriend Expert
 - heartbeat: **10초 간격**
 - AUTO session check: **5초 간격**
 
-AUTO 기준:
+AUTO 기준은 C# Bridge의 로컬 시계 추정이 아니라 Market AI 서버의 `/api/bridge/kis-efriend/route-code` 응답이다. Bridge는 5초마다 route를 확인한다.
+
+기본 세션 정책:
 
 ```text
-08:45~15:45 → FC_R
-15:45~18:00 → 장외 / 구독 해제
-18:00~06:00 → CMEC_R
-06:00~08:45 → 장외 / 구독 해제
+KRX 거래일 08:45~15:45                  → FC_R / day
+장외 또는 정규장 휴장                    → CLOSED
+야간 개시일이 KRX 거래일인 18:00~익일06:00 → CMEC_R / night
+야간 개시일이 주말·공휴일·휴장일          → CLOSED
 ```
+
+실제 최종거래일에는 만기 월물이 15:20에 끝나므로 15:20~15:45에도 서비스는 `FC_R`이지만 종목코드는 다음 분기월로 전환된다.
 
 ## 9.2 Market AI 저장
 
@@ -621,14 +664,16 @@ source 형식:
 야간:
 
 ```text
-kis-efriend:night:CMEC_R:A01609
+kis-efriend:night:CMEC_R:<instrument_code>
 ```
 
 주간:
 
 ```text
-kis-efriend:day:FC_R:A01609
+kis-efriend:day:FC_R:<instrument_code>
 ```
+
+2026-09 실증에서는 `<instrument_code>`가 `A01609`였다. AUTO rollover 이후에는 서버가 판정한 현재 근월물 코드가 들어간다.
 
 snapshot은 전달된 실제 선물 tick으로 최신화.
 
@@ -643,14 +688,16 @@ snapshot은 전달된 실제 선물 tick으로 최신화.
 설정:
 
 ```text
-MARKET_AI_KIS_KOSPI200_CODE=A01609
+MARKET_AI_KIS_KOSPI200_CODE=
 MARKET_AI_KIS_HISTORY_INTERVAL_SECONDS=60
 MARKET_AI_KIS_HEARTBEAT_STALE_SECONDS=30
+MARKET_AI_KRX_CLOSED_DATES=
+MARKET_AI_KRX_OPEN_DATES=
+MARKET_AI_KRX_NIGHT_CLOSED_DATES=
 ```
 
-현재는 FML/FOPH로 검증한 `A01609`만 `FUTURES:KOSPI200`으로 허용한다.
-다른 종목코드는 422로 거부하며, 월물 변경은 실제 조회 후 설정값을 갱신한다.
-heartbeat는 `FC_R/day`, `CMEC_R/night`, 장외 `service=null/closed` 조합만 허용한다.
+고정 override가 비어 있으면 서버가 계산한 현재 AUTO 근월물만 `FUTURES:KOSPI200`으로 허용하고 다른 종목코드는 422로 거부한다. 고정 override를 명시한 경우에만 그 코드를 비상 수동 기준으로 사용한다.
+heartbeat는 서버가 기대하는 현재 route와 일치하는 `FC_R/day`, `CMEC_R/night`, 장외 `service=null/closed` 조합만 허용한다.
 heartbeat 성공만으로 이전 tick 저장 오류(`last_error`)를 지우지 않는다.
 
 ## 9.3 2차 실제 실통신 확인 ✅
@@ -750,7 +797,7 @@ eFriend Expert
 
 확인 완료:
 
-- KOSPI200 허용 종목코드 검증 (`MARKET_AI_KIS_KOSPI200_CODE=A01609`)
+- 당시 고정 override 기준 KOSPI200 허용 종목코드 검증 (`A01609`); 이후 10차에서 AUTO expected-contract 검증으로 확장
 - 잘못된 종목코드 422 거부
 - heartbeat `FC_R/day`, `CMEC_R/night`, `service=null/closed` 조합 검증
 - tick 저장 오류 발생 후 heartbeat가 기존 `last_error`를 지우지 않음
@@ -777,31 +824,57 @@ eFriend Expert
 → Signal Engine
 ```
 
-**현재 다음 작업은 주간장 개장 시 `FC_R` 실제 실시간 수신을 1회 확인하는 것이다.**
-
-새 채팅에서 `인수인계`라고 입력했을 때는 자동으로 실통신 확인을 시작하지 말고:
-
-```text
-다음 요청: 주간 FC_R 확인
-```
-
-이라고 안내한다.
-
-주간 실제 확인 범위:
-
-- 08:45~15:45 `FC_R` 구독
-- 실제 체결 tick 수신
-- C# Bridge → Market AI 전송
-- source가 `kis-efriend:day:FC_R:A01609`인지 확인
-- `FUTURES:KOSPI200` snapshot 갱신
-- Signal Engine 반영
-- 장 종료 시 AUTO unsubscribe / closed 전환
-
-주간 실증 전까지는 코드 경계값 QA는 PASS지만 **실제 `FC_R` live 확인만 미완료**로 취급한다.
+이 58/58 결과는 **Bridge 2차 실통신/저장 검증 기준선**이다. 이후 10차에서 AUTO 근월물·KRX 거래세션 라우팅이 추가되었으므로, 현재 남은 검증 순서는 다음 11장을 따른다.
 
 ---
 
-# 11. QA 이후 남은 운영 작업
+# 11. Market AI 10차 후속 검증 순서
+
+AUTO 근월물/세션 라우팅 구현 후의 검증 순서는 **정적·경계값 QA → 실제 주간 live 확인**이다.
+
+## 11.1 AUTO 휴장일 처리 QA — 다음 작업
+
+다음 항목을 코드/테스트 기준으로 확인한다. 실제 eFriend 주간장이 열려 있을 필요는 없다.
+
+- 일반 평일 `08:45 / 15:20 / 15:45 / 18:00 / 06:00` 경계
+- 토·일요일 CLOSED
+- `XKRX`가 알고 있는 정규 휴장일 CLOSED
+- XKRX 범위 밖 fallback 공휴일과 5월 1일/연말 휴장
+- `MARKET_AI_KRX_CLOSED_DATES` / `OPEN_DATES` 우선순위
+- `MARKET_AI_KRX_NIGHT_CLOSED_DATES`가 18:00 시작일 기준으로만 야간장을 닫는지
+- 명목상 두 번째 목요일 휴장 시 실제 최종거래일이 직전 거래일로 이동하는지
+- 실제 최종거래일 15:20 전/후 종목코드 rollover
+- `/contract`, `/route`, `/route-code`의 종목코드·service·session 일치
+- 잘못된 tick/heartbeat route가 422로 거부되는지
+
+완료 요청:
+
+```text
+AUTO 휴장일 QA
+```
+
+## 11.2 주간 FC_R 실제 실시간 확인 — AUTO QA PASS 후
+
+실제 주간장 개장 시 1회 확인한다.
+
+- 서버 route가 `FC_R/day` 반환
+- C# Bridge가 AUTO로 현재 근월물 + `FC_R` 구독
+- 실제 체결 tick 수신
+- C# Bridge → Market AI 전송
+- source가 `kis-efriend:day:FC_R:<현재_AUTO_종목코드>`인지 확인
+- `FUTURES:KOSPI200` snapshot 갱신
+- Signal Engine 반영
+- 장 종료 시 AUTO unsubscribe / CLOSED 전환
+
+완료 요청:
+
+```text
+주간 FC_R 확인
+```
+
+---
+
+# 12. 남은 운영 / QA 작업
 
 ## KIS
 
@@ -811,14 +884,16 @@ eFriend Expert
 야간 CMEC_R 실제 실통신 ✅
 C# Bridge → Market AI ✅
 Signal Engine 반영 ✅
+KOSPI200 AUTO 근월물 rollover ✅ 구현
+서버 기준 FC_R / CMEC_R / CLOSED route ✅ 구현
+KRX 캘린더 + fallback + 수동 override ✅ 구현
 ```
 
 남음:
 
 ```text
-주간 FC_R 실시간 1회 확인
-근월물 자동 rollover 검토
-FML 기반 월물 갱신 검토
+AUTO 휴장일/만기일/야간장 경계값 QA
+주간 FC_R 실제 실시간 1회 확인
 필요 시 CMEH_R 호가 교차검증
 ```
 
@@ -837,7 +912,7 @@ FML 기반 월물 갱신 검토
 
 ---
 
-# 12. 파일/보존 관련 주의
+# 13. 파일/보존 관련 주의
 
 ## 반드시 보존
 
@@ -878,32 +953,32 @@ eFriendQA/
 
 ---
 
-# 13. 현재 상태 한눈에 보기
+# 14. 현재 상태 한눈에 보기
 
 ```text
-Market AI 1~9차                     ✅
+Market AI 1~10차                    ✅
 시장 데이터 / 뉴스                  ✅
 Signal Engine                       ✅
 Backtest / Calibration              ✅
 투자 대시보드 Market AI 연동         ✅
-OpenAI 실제 API live QA             ⏳
+OpenAI 실제 API live QA             ⏸ 선택 기능 · 보류
 eFriend Expert 실시간 환경          ✅
-KOSPI200 A01609 확인                ✅
+2026-09 A01609 실물월물 확인         ✅ 실증 예시
 야간 CMEC_R                         ✅ 실증
 C# Bridge 1차                       ✅
 C# → Market AI Bridge 2차           ✅ 실통신
 Signal Engine 실제 KIS futures 반영  ✅
-Bridge 2차 QA 수정 반영              ✅
 Bridge 2차 수정본 재QA               ✅ 58/58 PASS
-주간 FC_R live 확인                 ⏳ 다음 작업
-근월물 자동 rollover                ⏳ 이후 검토
+근월물 자동 rollover                ✅ 구현
+KRX 세션/휴장 route                 ✅ 구현
+AUTO 휴장일 경계값 QA               ⏳ 다음 작업
+주간 FC_R live 확인                 ⏳ AUTO QA 이후
 GitHub 연동                         ⏸ 현재 불필요
-main_dashboard_maintenance_handover  ⏸ 아직 수정 금지
 ```
 
 ---
 
-# 14. 새 채팅 최종 행동 지침
+# 15. 새 채팅 최종 행동 지침
 
 사용자가 최신 ZIP을 첨부하고:
 
@@ -913,14 +988,20 @@ main_dashboard_maintenance_handover  ⏸ 아직 수정 금지
 
 라고 입력하면 **절대 바로 QA를 시작하지 않는다.**
 
-이 문서 기준 상태를 확인한 뒤 다음만 알려주고 대기한다.
+이 문서와 실제 최신 소스를 확인한 뒤 다음처럼 안내하고 대기한다.
 
 ```text
 인수인계 확인 완료.
-Bridge 2차 수정본 QA는 완료됐습니다.
-현재 다음 작업은 KIS eFriend Expert 주간 FC_R 실제 실시간 수신 1회 확인입니다.
+Bridge 2차 실통신 기준 QA는 58/58 PASS이고, Market AI 10차 AUTO 근월물/세션 라우팅까지 구현된 상태입니다.
+현재 다음 작업은 AUTO 휴장일 처리 경계값 QA입니다.
 
-다음 요청: 주간 FC_R 확인
+다음 요청: AUTO 휴장일 QA
 ```
 
-사용자가 `주간 FC_R 확인`이라고 입력하면 주간장 실통신 확인을 진행한다.
+`AUTO 휴장일 QA`가 PASS하면 다음 단계는:
+
+```text
+주간 FC_R 확인
+```
+
+이며, 실제 `FC_R` 수신 → C# Bridge → Market AI → Signal Engine 경로를 1회 실증한다.

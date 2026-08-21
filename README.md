@@ -12,7 +12,7 @@
 ## 현재 상태
 
 ```text
-Market AI 1~9차                     ✅
+Market AI 1~10차                    ✅
 시장 데이터 수집                     ✅
 뉴스 수집                           ✅
 OpenAI 뉴스 분석 코드                ✅
@@ -26,11 +26,12 @@ Signal Engine 실제 KIS 선물 반영      ✅
 Bridge 2차 QA 수정 반영              ✅
 Bridge 2차 수정본 재QA               ✅ 58/58 PASS
 KOSPI200 근월물 자동 rollover        ✅ 구현
-주간 FC_R 실시간 확인                ⏳ 실증 필요
+AUTO 휴장일 경계값 QA               ⏳ 다음 작업
+주간 FC_R 실시간 확인                ⏳ AUTO QA 이후 실증
 OpenAI 실제 API live QA             ⏸ 선택 기능 · 보류
 ```
 
-다음 개발 작업은 **AUTO 휴장일 처리 QA + 주간 `FC_R` 실제 실시간 수신 1회 확인**입니다.
+다음 작업 순서는 **AUTO 휴장일 처리 경계값 QA → 주간 `FC_R` 실제 실시간 수신 1회 확인**입니다.
 
 ---
 
@@ -42,12 +43,14 @@ market-ai/
 ├─ config.py                  # 환경변수 설정
 ├─ requirements.txt           # 필수 Python 패키지
 ├─ requirements-openai.txt    # 선택: OpenAI 기능 패키지
+├─ build-kis-bridge-release.bat
 ├─ .env.example
 │
 ├─ ai/                        # OpenAI 뉴스 구조화
 ├─ backtest/                  # 예측/실제 결과 평가
 ├─ bridges/
-│  └─ kis_efriend.py          # KIS eFriend Bridge 수신 API/저장
+│  ├─ kis_efriend.py          # KIS eFriend Bridge 수신 API/저장
+│  └─ kospi200_contract.py    # KRX 거래일·근월물·세션 AUTO 판정
 ├─ calibration/               # 확률 Calibration
 ├─ collectors/                # yfinance 시장 collector
 ├─ db/                        # SQLAlchemy repository / SQLite
@@ -238,19 +241,21 @@ canonical symbol:
 FUTURES:KOSPI200
 ```
 
-source:
+source 형식:
 
 야간:
 
 ```text
-kis-efriend:night:CMEC_R:A01609
+kis-efriend:night:CMEC_R:<instrument_code>
 ```
 
 주간:
 
 ```text
-kis-efriend:day:FC_R:A01609
+kis-efriend:day:FC_R:<instrument_code>
 ```
+
+2026-09 월물 실증에서는 `<instrument_code>`가 `A01609`였다. AUTO rollover 이후에는 서버가 판정한 현재 근월물 코드가 들어간다.
 
 실시간 snapshot은 KIS futures tick으로 갱신합니다.
 
@@ -566,12 +571,12 @@ market_ai_project_handover.md
 
 라고 입력하면, 먼저 인수인계 문서를 읽고 **작업을 자동 시작하지 않은 상태에서** 다음 작업을 안내해야 합니다.
 
-Bridge 2차 수정본 QA는 **58/58 PASS로 완료**되었습니다.
+Bridge 2차 수정본 QA는 **58/58 PASS로 완료**되었고, 이후 Market AI 10차에서 KOSPI200 AUTO 근월물/세션 라우팅이 구현되었습니다.
 
 현재 다음 요청:
 
 ```text
-주간 FC_R 확인
+AUTO 휴장일 QA
 ```
 
 즉 새 채팅에서는:
@@ -582,13 +587,13 @@ Bridge 2차 수정본 QA는 **58/58 PASS로 완료**되었습니다.
 
 → 인수인계 확인 응답
 
-→ 사용자가 주간장 실통신 확인이 가능한 시점에 직접:
+→ `AUTO 휴장일 QA`로 KRX 거래일·휴장일·만기일·야간장 경계값을 먼저 검증
+
+→ PASS 후 실제 주간장이 열린 시점에:
 
 ```text
 주간 FC_R 확인
 ```
-
-을 입력
 
 → 실제 `FC_R` 수신 → C# Bridge → Market AI → Signal Engine 경로를 확인
 
