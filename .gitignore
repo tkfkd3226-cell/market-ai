@@ -1,0 +1,7 @@
+# Local KIS Bridge build/runtime artifacts
+KisKospi200Bridge/bin/
+KisKospi200Bridge/obj/
+/KisKospi200Bridge.exe
+/KisKospi200Bridge.exe.config
+/AxInterop.ITGExpertCtlLib.dll
+/Interop.ITGExpertCtlLib.dll

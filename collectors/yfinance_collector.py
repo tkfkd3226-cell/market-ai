@@ -1,0 +1,178 @@
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+import pandas as pd
+import yfinance as yf
+
+from collectors.types import MarketObservation
+from market.provider_map import YahooMapping
+
+
+class YFinanceCollector:
+    """Zero-key development feed backed by Yahoo Finance via yfinance."""
+
+    source_name = "yfinance"
+
+    def __init__(self, mappings: tuple[YahooMapping, ...], *, timeout_seconds: int = 15):
+        self.mappings = mappings
+        self.timeout_seconds = timeout_seconds
+
+    @property
+    def enabled_mappings(self) -> tuple[YahooMapping, ...]:
+        return tuple(item for item in self.mappings if item.provider_symbol)
+
+    @property
+    def disabled_mappings(self) -> tuple[YahooMapping, ...]:
+        return tuple(item for item in self.mappings if not item.provider_symbol)
+
+    def fetch(self) -> tuple[list[MarketObservation], dict[str, str]]:
+        enabled = self.enabled_mappings
+        provider_symbols = [item.provider_symbol for item in enabled if item.provider_symbol]
+        if not provider_symbols:
+            return [], {}
+
+        intraday = yf.download(
+            tickers=provider_symbols,
+            period="5d",
+            interval="1m",
+            group_by="ticker",
+            auto_adjust=False,
+            prepost=True,
+            threads=True,
+            progress=False,
+            timeout=self.timeout_seconds,
+            ignore_tz=False,
+            multi_level_index=True,
+        )
+        daily = yf.download(
+            tickers=provider_symbols,
+            period="10d",
+            interval="1d",
+            group_by="ticker",
+            auto_adjust=False,
+            prepost=False,
+            threads=True,
+            progress=False,
+            timeout=self.timeout_seconds,
+            ignore_tz=True,
+            multi_level_index=True,
+        )
+
+        observations: list[MarketObservation] = []
+        errors: dict[str, str] = {}
+
+        for mapping in enabled:
+            assert mapping.provider_symbol is not None
+            try:
+                observation = self._build_observation(mapping, intraday, daily)
+            except Exception as exc:  # Provider failures should not stop other symbols.
+                errors[mapping.symbol] = str(exc)
+                continue
+
+            if observation is None:
+                errors[mapping.symbol] = "no price data returned"
+                continue
+
+            observations.append(observation)
+
+        return observations, errors
+
+    def _build_observation(
+        self,
+        mapping: YahooMapping,
+        intraday: pd.DataFrame,
+        daily: pd.DataFrame,
+    ) -> MarketObservation | None:
+        provider_symbol = mapping.provider_symbol
+        if provider_symbol is None:
+            return None
+
+        intraday_frame = self._ticker_frame(intraday, provider_symbol)
+        if intraday_frame.empty or "Close" not in intraday_frame:
+            return None
+
+        close_series = intraday_frame["Close"].dropna()
+        if close_series.empty:
+            return None
+
+        latest_index = close_series.index[-1]
+        latest_price = float(close_series.iloc[-1])
+        observed_at = self._to_utc_datetime(latest_index)
+
+        daily_frame = self._ticker_frame(daily, provider_symbol)
+        previous_close = self._previous_close(
+            daily_frame,
+            observed_at=observed_at,
+            market_timezone=mapping.market_timezone,
+        )
+        change_pct = None
+        if previous_close not in (None, 0.0):
+            change_pct = ((latest_price / previous_close) - 1.0) * 100.0
+
+        source = f"{self.source_name}:{provider_symbol}"
+        if mapping.is_proxy:
+            source += ":proxy"
+
+        return MarketObservation(
+            symbol=mapping.symbol,
+            provider_symbol=provider_symbol,
+            price=latest_price,
+            change_pct=change_pct,
+            observed_at=observed_at,
+            source=source,
+            is_proxy=mapping.is_proxy,
+        )
+
+    @staticmethod
+    def _ticker_frame(frame: pd.DataFrame, ticker: str) -> pd.DataFrame:
+        if frame.empty:
+            return pd.DataFrame()
+
+        if isinstance(frame.columns, pd.MultiIndex):
+            level_0 = frame.columns.get_level_values(0)
+            if ticker in level_0:
+                result = frame[ticker]
+                return result if isinstance(result, pd.DataFrame) else result.to_frame()
+
+            level_1 = frame.columns.get_level_values(1)
+            if ticker in level_1:
+                result = frame.xs(ticker, axis=1, level=1)
+                return result if isinstance(result, pd.DataFrame) else result.to_frame()
+
+            return pd.DataFrame(index=frame.index)
+
+        # yfinance may flatten columns when only one symbol is requested.
+        return frame
+
+    @staticmethod
+    def _to_utc_datetime(value: object) -> datetime:
+        timestamp = pd.Timestamp(value)
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.tz_localize(timezone.utc)
+        else:
+            timestamp = timestamp.tz_convert(timezone.utc)
+        return timestamp.to_pydatetime()
+
+    @staticmethod
+    def _previous_close(
+        daily_frame: pd.DataFrame,
+        *,
+        observed_at: datetime,
+        market_timezone: str,
+    ) -> float | None:
+        if daily_frame.empty or "Close" not in daily_frame:
+            return None
+
+        closes = daily_frame["Close"].dropna()
+        if closes.empty:
+            return None
+
+        local_date = observed_at.astimezone(ZoneInfo(market_timezone)).date()
+        last_daily_date = pd.Timestamp(closes.index[-1]).date()
+
+        if last_daily_date >= local_date:
+            if len(closes) < 2:
+                return None
+            return float(closes.iloc[-2])
+
+        return float(closes.iloc[-1])
