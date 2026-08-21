@@ -4,15 +4,14 @@ import json
 import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Iterable
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from db.models import MarketSnapshot, NewsAIAnalysis, NewsArticle
+from db.models import MarketSnapshot
 
 
-ENGINE_VERSION = "stage6_rule_v3"
+ENGINE_VERSION = "stage6_rule_v5"
 
 
 @dataclass(frozen=True)
@@ -24,29 +23,62 @@ class ComponentSpec:
     invert: bool = False
 
 
+# Signal names are intentionally literal: each score uses only inputs that match
+# the meaning shown in the dashboard tooltip. Macro/news inputs are collected by
+# Market AI for other uses, but they are not blended into these four rule scores.
 COMPONENT_SPECS = {
-    "korea_semiconductors": ComponentSpec(
-        key="korea_semiconductors",
-        label="Korea semiconductors",
-        symbols=("KRX:005930", "KRX:000660"),
-        scale_pct=4.0,
-    ),
-    "us_semiconductors": ComponentSpec(
-        key="us_semiconductors",
-        label="US semiconductors",
-        symbols=("NASDAQ:SKHY", "NASDAQ:NVDA", "NASDAQ:MU", "FUTURES:SOX"),
-        scale_pct=4.0,
-    ),
-    "nasdaq_futures": ComponentSpec(
-        key="nasdaq_futures",
-        label="Nasdaq 100 futures",
-        symbols=("FUTURES:NQ",),
+    "kospi_index": ComponentSpec(
+        key="kospi_index",
+        label="KOSPI spot index",
+        symbols=("INDEX:KOSPI",),
         scale_pct=2.0,
     ),
     "kospi200_futures": ComponentSpec(
         key="kospi200_futures",
         label="KOSPI 200 futures",
         symbols=("FUTURES:KOSPI200",),
+        scale_pct=2.0,
+    ),
+    "samsung_electronics": ComponentSpec(
+        key="samsung_electronics",
+        label="Samsung Electronics",
+        symbols=("KRX:005930",),
+        scale_pct=4.0,
+    ),
+    "sk_hynix": ComponentSpec(
+        key="sk_hynix",
+        label="SK hynix",
+        symbols=("KRX:000660",),
+        scale_pct=4.0,
+    ),
+    "sox_index": ComponentSpec(
+        key="sox_index",
+        label="PHLX Semiconductor Index",
+        symbols=("INDEX:SOX",),
+        scale_pct=3.0,
+    ),
+    "nvidia": ComponentSpec(
+        key="nvidia",
+        label="NVIDIA",
+        symbols=("NASDAQ:NVDA",),
+        scale_pct=4.0,
+    ),
+    "micron": ComponentSpec(
+        key="micron",
+        label="Micron",
+        symbols=("NASDAQ:MU",),
+        scale_pct=4.0,
+    ),
+    "sk_hynix_adr": ComponentSpec(
+        key="sk_hynix_adr",
+        label="SK hynix ADR",
+        symbols=("NASDAQ:SKHY",),
+        scale_pct=4.0,
+    ),
+    "nasdaq100_futures": ComponentSpec(
+        key="nasdaq100_futures",
+        label="Nasdaq 100 futures",
+        symbols=("FUTURES:NQ",),
         scale_pct=2.0,
     ),
     "usdkrw": ComponentSpec(
@@ -56,54 +88,39 @@ COMPONENT_SPECS = {
         scale_pct=1.2,
         invert=True,
     ),
-    "oil": ComponentSpec(
-        key="oil",
-        label="Crude oil",
-        symbols=("COMMODITY:WTI", "COMMODITY:BRENT"),
-        scale_pct=4.0,
-        invert=True,
-    ),
-    "rates": ComponentSpec(
-        key="rates",
-        label="US Treasury yields",
-        symbols=("RATE:US10Y", "RATE:US30Y"),
-        scale_pct=3.0,
-        invert=True,
-    ),
 }
 
 
+# Literal KOSPI direction: current KOSPI spot + leading KOSPI200 futures.
 KOSPI_WEIGHTS = {
-    "kospi200_futures": 0.20,
-    "korea_semiconductors": 0.15,
-    "us_semiconductors": 0.15,
-    "nasdaq_futures": 0.15,
-    "rates": 0.10,
-    "oil": 0.10,
-    "usdkrw": 0.05,
-    "news_kospi": 0.10,
+    "kospi_index": 0.35,
+    "kospi200_futures": 0.65,
 }
 
+# Semiconductor direction: only direct Korean/US semiconductor assets and SOX.
 SEMICONDUCTOR_WEIGHTS = {
-    "kospi200_futures": 0.10,
-    "korea_semiconductors": 0.15,
-    "us_semiconductors": 0.25,
-    "nasdaq_futures": 0.15,
-    "rates": 0.10,
-    "oil": 0.05,
-    "usdkrw": 0.05,
-    "news_semiconductors": 0.15,
+    "samsung_electronics": 0.20,
+    "sk_hynix": 0.20,
+    "sox_index": 0.20,
+    "nvidia": 0.15,
+    "sk_hynix_adr": 0.15,
+    "micron": 0.10,
 }
 
+# Pre-open gap signal: leading overnight inputs in the requested priority order.
 GAP_UP_WEIGHTS = {
-    "kospi200_futures": 0.15,
-    "us_semiconductors": 0.25,
-    "nasdaq_futures": 0.25,
-    "rates": 0.10,
-    "oil": 0.05,
+    "kospi200_futures": 0.50,
+    "sox_index": 0.25,
+    "nasdaq100_futures": 0.20,
     "usdkrw": 0.05,
-    "news_kospi": 0.10,
-    "news_semiconductors": 0.05,
+}
+
+# Up-close signal is now a direct market score, not a KOSPI/semi score blend.
+UP_CLOSE_WEIGHTS = {
+    "kospi_index": 0.45,
+    "kospi200_futures": 0.35,
+    "sox_index": 0.12,
+    "nasdaq100_futures": 0.08,
 }
 
 
@@ -136,7 +153,8 @@ def _direction_to_score(direction: float) -> float:
 
 
 def _score_to_heuristic_probability(score: float) -> float:
-    # Stage 6 is intentionally not statistically calibrated. Keep extremes bounded.
+    # Rule scores are intentionally not statistical probabilities. Keep the
+    # legacy field names for API/backtest compatibility and bound the mapping.
     value = 50.0 + (score - 50.0) * 0.85
     return round(_clamp(value, 10.0, 90.0), 2)
 
@@ -188,7 +206,7 @@ def _build_market_component(
                 "change_pct": float(row.change_pct),
                 "source": row.source,
                 "observed_at": _as_utc(row.observed_at).isoformat().replace("+00:00", "Z"),
-                "reason": "KOSPI200 spot proxy is visible but excluded from Stage 6 futures signal",
+                "reason": "KOSPI200 spot proxy is visible but excluded from futures signal",
             })
             continue
 
@@ -235,92 +253,6 @@ def _build_market_component(
     }
 
 
-def _news_time_weight(published_at: datetime | None, analyzed_at: datetime, now: datetime) -> float:
-    reference = _as_utc(published_at or analyzed_at)
-    age_hours = max(0.0, (now - reference).total_seconds() / 3600.0)
-    # A smooth half-life-like decay without requiring additional dependencies.
-    return math.exp(-age_hours / 8.0)
-
-
-def _horizon_weight(value: str) -> float:
-    return {
-        "intraday": 1.00,
-        "1d": 0.95,
-        "multiday": 0.75,
-        "longer": 0.50,
-    }.get(value, 0.60)
-
-
-def _aggregate_news(
-    rows: Iterable[tuple[NewsAIAnalysis, NewsArticle]],
-    *,
-    now: datetime,
-) -> dict[str, object]:
-    kospi_sum = 0.0
-    semiconductor_sum = 0.0
-    total_weight = 0.0
-    items: list[dict[str, object]] = []
-
-    for analysis, article in rows:
-        time_weight = _news_time_weight(article.published_at, analysis.analyzed_at, now)
-        quality_weight = (
-            float(analysis.market_relevance)
-            * float(analysis.confidence)
-            * (0.35 + 0.65 * float(analysis.novelty))
-            * (0.30 + 0.70 * float(analysis.severity) / 100.0)
-            * _horizon_weight(analysis.time_horizon)
-            * time_weight
-        )
-        if quality_weight <= 0:
-            continue
-
-        kospi_sum += float(analysis.kospi_impact) * quality_weight
-        semiconductor_sum += float(analysis.semiconductor_impact) * quality_weight
-        total_weight += quality_weight
-        items.append({
-            "article_id": article.id,
-            "title": article.title,
-            "category": analysis.category,
-            "event_type": analysis.event_type,
-            "published_at": None if article.published_at is None else _as_utc(article.published_at).isoformat().replace("+00:00", "Z"),
-            "quality_weight": round(quality_weight, 5),
-            "kospi_impact": float(analysis.kospi_impact),
-            "semiconductor_impact": float(analysis.semiconductor_impact),
-        })
-
-    if total_weight <= 0:
-        return {
-            "available": False,
-            "count": 0,
-            "quality": 0.0,
-            "kospi_direction": None,
-            "semiconductor_direction": None,
-            "items": [],
-        }
-
-    kospi_direction = _clamp(kospi_sum / total_weight, -1.0, 1.0)
-    semiconductor_direction = _clamp(semiconductor_sum / total_weight, -1.0, 1.0)
-
-    # Keep direction and evidence quality separate. One strong article can provide
-    # high-quality evidence, while multiple moderate articles reinforce it without
-    # allowing quality to exceed 1.0.
-    combined_quality = 0.0
-    for item in items:
-        item_quality = _clamp(float(item["quality_weight"]), 0.0, 1.0)
-        combined_quality = 1.0 - (1.0 - combined_quality) * (1.0 - item_quality)
-
-    return {
-        "available": True,
-        "count": len(items),
-        "quality": round(_clamp(combined_quality, 0.0, 1.0), 4),
-        "kospi_direction": round(kospi_direction, 4),
-        "semiconductor_direction": round(semiconductor_direction, 4),
-        "kospi_score": _direction_to_score(kospi_direction),
-        "semiconductor_score": _direction_to_score(semiconductor_direction),
-        "items": items[:20],
-    }
-
-
 def _combine(
     weights: dict[str, float],
     directions: dict[str, float | None],
@@ -342,6 +274,17 @@ def _combine(
     return _clamp(weighted_sum / effective_weight, -1.0, 1.0), effective_weight
 
 
+def _directional_agreement(values: list[float]) -> float:
+    if len(values) < 2:
+        return 1.0
+    differences = [
+        abs(left - right) / 2.0
+        for index, left in enumerate(values)
+        for right in values[index + 1:]
+    ]
+    return _clamp(1.0 - sum(differences) / max(1, len(differences)), 0.0, 1.0)
+
+
 def build_signal(
     session: Session,
     *,
@@ -350,6 +293,10 @@ def build_signal(
     ai_news_active: bool,
     now: datetime | None = None,
 ) -> SignalResult | None:
+    # news_lookback_hours / ai_news_active remain in the public function signature
+    # for service/API compatibility. v5 deliberately does not use news inputs.
+    del news_lookback_hours, ai_news_active
+
     now_utc = _as_utc(now or datetime.now(timezone.utc))
     snapshots = list(session.scalars(select(MarketSnapshot)).all())
     snapshot_map = {row.symbol: row for row in snapshots}
@@ -359,79 +306,35 @@ def build_signal(
         for key, spec in COMPONENT_SPECS.items()
     }
 
-    if ai_news_active:
-        cutoff = now_utc.timestamp() - float(news_lookback_hours * 3600)
-        news_rows = list(
-            session.execute(
-                select(NewsAIAnalysis, NewsArticle)
-                .join(NewsArticle, NewsArticle.id == NewsAIAnalysis.article_id)
-                .order_by(NewsAIAnalysis.analyzed_at.desc(), NewsAIAnalysis.id.desc())
-                .limit(250)
-            ).all()
-        )
-        filtered_news_rows: list[tuple[NewsAIAnalysis, NewsArticle]] = []
-        for analysis, article in news_rows:
-            reference = _as_utc(article.published_at or analysis.analyzed_at)
-            if reference.timestamp() >= cutoff:
-                filtered_news_rows.append((analysis, article))
-        news = _aggregate_news(filtered_news_rows, now=now_utc)
-    else:
-        news = {
-            "available": False,
-            "enabled": False,
-            "state": "disabled_by_config",
-            "count": 0,
-            "quality": 0.0,
-            "kospi_direction": None,
-            "semiconductor_direction": None,
-            "items": [],
-        }
-
     directions: dict[str, float | None] = {
-        key: (
-            None if not component["available"] else float(component["direction"])
-        )
+        key: (None if not component["available"] else float(component["direction"]))
         for key, component in market_components.items()
     }
-    directions["news_kospi"] = (
-        None if not news["available"] else float(news["kospi_direction"])
-    )
-    directions["news_semiconductors"] = (
-        None if not news["available"] else float(news["semiconductor_direction"])
-    )
-
     qualities: dict[str, float] = {
-        key: (
-            0.0 if not component["available"] else float(component.get("quality", 0.0))
-        )
+        key: (0.0 if not component["available"] else float(component.get("quality", 0.0)))
         for key, component in market_components.items()
     }
-    news_quality = 0.0 if not news["available"] else float(news.get("quality", 0.0))
-    qualities["news_kospi"] = news_quality
-    qualities["news_semiconductors"] = news_quality
 
     kospi_direction, kospi_available_weight = _combine(KOSPI_WEIGHTS, directions, qualities)
     semi_direction, semi_available_weight = _combine(SEMICONDUCTOR_WEIGHTS, directions, qualities)
     gap_direction, gap_available_weight = _combine(GAP_UP_WEIGHTS, directions, qualities)
+    up_close_direction, up_close_available_weight = _combine(UP_CLOSE_WEIGHTS, directions, qualities)
 
     eligible_weights = {
-        "kospi": sum(
-            weight for key, weight in KOSPI_WEIGHTS.items()
-            if ai_news_active or not key.startswith("news_")
-        ),
-        "semiconductors": sum(
-            weight for key, weight in SEMICONDUCTOR_WEIGHTS.items()
-            if ai_news_active or not key.startswith("news_")
-        ),
-        "gap_up": sum(
-            weight for key, weight in GAP_UP_WEIGHTS.items()
-            if ai_news_active or not key.startswith("news_")
-        ),
+        "kospi": sum(KOSPI_WEIGHTS.values()),
+        "semiconductors": sum(SEMICONDUCTOR_WEIGHTS.values()),
+        "gap_up": sum(GAP_UP_WEIGHTS.values()),
+        "up_close": sum(UP_CLOSE_WEIGHTS.values()),
+    }
+    available_weights = {
+        "kospi": kospi_available_weight,
+        "semiconductors": semi_available_weight,
+        "gap_up": gap_available_weight,
+        "up_close": up_close_available_weight,
     }
     completeness_parts = [
-        kospi_available_weight / max(eligible_weights["kospi"], 1e-9),
-        semi_available_weight / max(eligible_weights["semiconductors"], 1e-9),
-        gap_available_weight / max(eligible_weights["gap_up"], 1e-9),
+        available_weights[key] / max(eligible_weights[key], 1e-9)
+        for key in eligible_weights
     ]
     data_completeness = round(
         _clamp(sum(completeness_parts) / len(completeness_parts), 0.0, 1.0),
@@ -443,10 +346,15 @@ def build_signal(
     kospi_score = _direction_to_score(kospi_direction)
     semiconductor_score = _direction_to_score(semi_direction)
     gap_score = _direction_to_score(gap_direction)
-    up_close_score = round(kospi_score * 0.55 + semiconductor_score * 0.45, 2)
+    up_close_score = _direction_to_score(up_close_direction)
 
-    # Confidence is a data/consensus indicator, not forecast accuracy.
-    directional_agreement = 1.0 - min(1.0, abs(kospi_direction - semi_direction) / 2.0)
+    # Confidence remains a data/consensus indicator, not forecast accuracy.
+    directional_agreement = _directional_agreement([
+        kospi_direction,
+        semi_direction,
+        gap_direction,
+        up_close_direction,
+    ])
     confidence = round(
         _clamp(0.65 * data_completeness + 0.35 * directional_agreement, 0.0, 1.0),
         4,
@@ -456,35 +364,35 @@ def build_signal(
         "method": ENGINE_VERSION,
         "calibrated": False,
         "probability_note": (
-            "Stage 6 probabilities are bounded heuristic mappings from rule-based scores; "
-            "they are not yet statistically calibrated."
+            "Rule scores are bounded heuristic 0-100 signals; they are not statistically "
+            "calibrated unless a Stage 9 calibration model is returned separately."
         ),
         "created_at": now_utc.isoformat().replace("+00:00", "Z"),
+        "input_policy": {
+            "news_used": False,
+            "macro_used": ["USD/KRW"] ,
+            "note": (
+                "v5 keeps each dashboard signal literal: KOSPI uses KOSPI/KOSPI200 futures; "
+                "semiconductors use direct semiconductor assets; gap/up-close use their explicit maps."
+            ),
+        },
         "weights": {
             "kospi": KOSPI_WEIGHTS,
             "semiconductors": SEMICONDUCTOR_WEIGHTS,
             "gap_up": GAP_UP_WEIGHTS,
-        },
-        "news_policy": {
-            "active": ai_news_active,
-            "state": "active" if ai_news_active else "disabled_by_config",
-            "completeness_policy": (
-                "news weights are eligible and missing AI news reduces completeness"
-                if ai_news_active
-                else "news weights are excluded from completeness and confidence"
-            ),
+            "up_close": UP_CLOSE_WEIGHTS,
         },
         "eligible_weight": {
             key: round(value, 4) for key, value in eligible_weights.items()
         },
         "effective_weight": {
-            "kospi": round(kospi_available_weight, 4),
-            "semiconductors": round(semi_available_weight, 4),
-            "gap_up": round(gap_available_weight, 4),
+            key: round(value, 4) for key, value in available_weights.items()
         },
         "market_components": market_components,
-        "news": news,
-        "directions": {key: None if value is None else round(value, 4) for key, value in directions.items()},
+        "directions": {
+            key: None if value is None else round(value, 4)
+            for key, value in directions.items()
+        },
         "qualities": {key: round(value, 4) for key, value in qualities.items()},
         "scores": {
             "kospi": kospi_score,

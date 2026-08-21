@@ -91,6 +91,7 @@ from signals.engine import (
     GAP_UP_WEIGHTS,
     KOSPI_WEIGHTS,
     SEMICONDUCTOR_WEIGHTS,
+    UP_CLOSE_WEIGHTS,
 )
 from signals.service import SignalService
 
@@ -896,6 +897,7 @@ def signal_weights() -> dict[str, object]:
             "kospi": KOSPI_WEIGHTS,
             "semiconductors": SEMICONDUCTOR_WEIGHTS,
             "gap_up": GAP_UP_WEIGHTS,
+            "up_close": UP_CLOSE_WEIGHTS,
         },
     }
 

@@ -25,11 +25,6 @@ MARKET_INSTRUMENTS = (
         "group": "us_semiconductor",
     },
     {
-        "symbol": "FUTURES:SOX",
-        "name": "E-mini PHLX Semiconductor Futures",
-        "group": "us_semiconductor",
-    },
-    {
         "symbol": "INDEX:SOX",
         "name": "PHLX Semiconductor Index",
         "group": "market_index",

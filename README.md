@@ -99,7 +99,7 @@ MARKET_AI_AI_ENABLED=false
 OPENAI_API_KEY=
 ```
 
-OpenAI가 비활성화되어 있거나 API Key가 없으면 오류로 취급하지 않으며, 뉴스 가중치는 Signal의 `data_completeness`와 `confidence` 계산 분모에서도 제외됩니다.
+OpenAI가 비활성화되어 있거나 API Key가 없으면 오류로 취급하지 않습니다. `stage6_rule_v5`부터 대시보드의 4개 Rule Signal은 뉴스 입력을 사용하지 않으므로 OpenAI/뉴스 상태가 `data_completeness`와 `confidence`에 영향을 주지 않습니다.
 
 `.env`는 공유 ZIP이나 GitHub에 넣지 않습니다.
 
@@ -406,18 +406,26 @@ POST /api/signal/run-once
 현재 Signal Engine:
 
 ```text
-stage6_rule_v3
+stage6_rule_v5
 ```
 
-반도체 방향 입력은 현재 다음처럼 구성합니다.
+대시보드의 4개 신호는 이름과 입력 의미가 일치하도록 분리합니다.
 
 ```text
-한국: 삼성전자 + SK하이닉스
-미국: SK hynix ADR + NVIDIA + Micron + SOX 선물(SOX=F)
+코스피      KOSPI 현물 35% + KOSPI200 선물 65%
+반도체      삼성전자 20% + SK하이닉스 20% + SOX 20%
+            + NVIDIA 15% + SK하이닉스 ADR 15% + Micron 10%
+갭상        KOSPI200 선물 50% + SOX 25% + Nasdaq-100 선물 20% + USD/KRW 5%
+상승마감    KOSPI 현물 45% + KOSPI200 선물 35% + SOX 12% + Nasdaq-100 선물 8%
 ```
 
-`INDEX:KOSPI(^KS11)`와 `INDEX:SOX(^SOX)`는 실제 지수 표시용으로 수집하며,
-`FUTURES:SOX(SOX=F)`는 반도체 Signal 입력에 사용합니다.
+- SOX는 저유동성 선물(`SOX=F`)이 아니라 **PHLX 반도체 현물지수** `INDEX:SOX` (`^SOX`)를 사용합니다.
+- Nasdaq-100 선물 canonical symbol은 `FUTURES:NQ`, Yahoo provider symbol은 `NQ=F`입니다.
+- 뉴스, 금리, 유가 등은 이 4개 Rule Signal의 weight map에 섞지 않습니다.
+- freshness와 quality는 각 입력의 실제 유효 가중치에 계속 반영됩니다.
+- `FUTURES:SOX`의 기존 DB snapshot/history는 삭제하지 않지만 catalog와 자동수집 대상에서는 제외합니다.
+
+세부 weight와 component 목록은 `GET /api/signal/weights`, 실제 계산 근거는 `GET /api/signal/latest?include_details=true`에서 확인합니다.
 
 ## Backtest
 
