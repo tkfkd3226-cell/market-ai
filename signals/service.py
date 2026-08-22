@@ -62,7 +62,7 @@ class SignalService:
             try:
                 saved = await asyncio.to_thread(self._calculate_and_save)
                 if saved is None:
-                    self.last_reason = "insufficient market/news data for configured minimum weight"
+                    self.last_reason = "insufficient market data for configured minimum weight"
                 else:
                     result, calibration_payload = saved
                     self.last_saved = True
