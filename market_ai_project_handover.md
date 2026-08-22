@@ -277,7 +277,7 @@ AI 입력은 현재 기사 전체 본문이 아니라 **headline + metadata + to
 - confidence
 - novelty
 - time_horizon
-- affected_assets
+- affected_assets (`INDEX:SOX`만 허용, 구형 `FUTURES:SOX` 제외)
 - KOSPI / 반도체 / NASDAQ100 / 유가 / 금리 / USDKRW 영향
 - 한국어 rationale
 

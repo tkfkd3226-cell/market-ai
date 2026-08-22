@@ -479,6 +479,7 @@ MARKET_AI_AI_ENABLED=false
 API Key는 채팅, ZIP, GitHub에 넣지 않습니다.
 
 API Key가 없으면 `disabled_by_config`로 취급하며 오류가 아닙니다. API Key가 있어도 `MARKET_AI_AI_ENABLED=false`이면 자동 분석은 `manual_only` 상태로 유지되고 `POST /api/ai-news/run-once` 수동 테스트는 가능합니다. 비활성 상태에서는 과거 DB에 AI 뉴스 분석이 남아 있어도 새 Signal 계산에는 사용하지 않습니다.
+AI 뉴스의 `affected_assets` 허용 목록에서도 SOX는 `INDEX:SOX`만 사용하며 구형 `FUTURES:SOX`는 허용하지 않습니다.
 
 ---
 
