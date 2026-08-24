@@ -1,8 +1,8 @@
 # Market AI 프로젝트 인수인계
 
-> 기준 시점: 2026-08-22 06:55 KST  
+> 기준 시점: 2026-08-24 14:48 KST  
 > 기준본: 이 문서와 함께 첨부되는 **최신 `market-ai` ZIP**  
-> 현재 다음 작업: **AUTO 휴장일 처리 경계값 QA → KIS eFriend Expert 주간 `FC_R` 실제 실시간 수신 1회 확인**
+> 현재 다음 작업: **Signal v5 운영 확인**
 
 ---
 
@@ -16,26 +16,24 @@
 4. 현재 다음 작업이 아래임을 짧게 알려준다.
 
 ```text
-AUTO 휴장일 처리 경계값 QA
+Signal v5 운영 확인
 ```
 
 5. 답변 마지막에 반드시 아래처럼 안내하고 사용자 입력을 기다린다.
 
 ```text
-다음 요청: AUTO 휴장일 QA
+다음 요청: Signal v5 운영 확인
 ```
 
 권장 응답 예:
 
 ```text
 인수인계 확인 완료.
-현재 다음 작업은 AUTO 휴장일 처리 경계값 QA입니다.
-이 QA가 PASS하면 다음 단계는 KIS eFriend Expert 주간 FC_R 실제 실시간 수신 1회 확인입니다.
+AUTO 휴장일 경계값 QA는 53/53 PASS했고, 주간 FC_R 실제 실시간 수신도 확인 완료했습니다.
+현재 다음 작업은 Signal v5 운영 확인입니다.
 
-다음 요청: AUTO 휴장일 QA
+다음 요청: Signal v5 운영 확인
 ```
-
-사용자가 이후 **`AUTO 휴장일 QA`**라고 입력하면 KRX 거래일·휴장일·만기일·야간장 경계값 QA를 진행한다. PASS 후에는 **`주간 FC_R 확인`**으로 실제 주간장 실통신을 확인한다.
 
 ---
 
@@ -909,7 +907,7 @@ eFriend Expert
 
 AUTO 근월물/세션 라우팅 구현 후의 검증 순서는 **정적·경계값 QA → 실제 주간 live 확인**이다.
 
-## 11.1 AUTO 휴장일 처리 QA — 다음 작업
+## 11.1 AUTO 휴장일 처리 QA — ✅ 53/53 PASS
 
 다음 항목을 코드/테스트 기준으로 확인한다. 실제 eFriend 주간장이 열려 있을 필요는 없다.
 
@@ -924,13 +922,15 @@ AUTO 근월물/세션 라우팅 구현 후의 검증 순서는 **정적·경계�
 - `/contract`, `/route`, `/route-code`의 종목코드·service·session 일치
 - 잘못된 tick/heartbeat route가 422로 거부되는지
 
-완료 요청:
+2026-08-24 재QA 결과: **53/53 PASS**.
 
-```text
-AUTO 휴장일 QA
-```
+- 일반/주말/공휴일/override/야간장 경계 PASS
+- 실제 최종거래일 15:20 rollover PASS
+- 현재 서버 route와 다른 tick/heartbeat는 422로 거부 PASS
+- CLOSED 중 tick 거부, CLOSED heartbeat만 허용 PASS
+- contract/session 계산은 동일 server-side instant를 사용하도록 고정
 
-## 11.2 주간 FC_R 실제 실시간 확인 — AUTO QA PASS 후
+## 11.2 주간 FC_R 실제 실시간 확인 — ✅ 실증 완료
 
 실제 주간장 개장 시 1회 확인한다.
 
@@ -943,11 +943,7 @@ AUTO 휴장일 QA
 - Signal Engine 반영
 - 장 종료 시 AUTO unsubscribe / CLOSED 전환
 
-완료 요청:
-
-```text
-주간 FC_R 확인
-```
+2026-08-24 실제 주간장 확인 완료. eFriend Expert 실행 후 AUTO가 `FC_R/day`로 연결되고 K200 선물값이 Market AI/대시보드에 정상 표시됨.
 
 ---
 
@@ -964,13 +960,14 @@ Signal Engine 반영 ✅
 KOSPI200 AUTO 근월물 rollover ✅ 구현
 서버 기준 FC_R / CMEC_R / CLOSED route ✅ 구현
 KRX 캘린더 + fallback + 수동 override ✅ 구현
+AUTO 휴장일/만기일/야간장 경계값 QA ✅ 53/53 PASS
+주간 FC_R 실제 실시간 1회 확인 ✅
 ```
 
 남음:
 
 ```text
-AUTO 휴장일/만기일/야간장 경계값 QA
-주간 FC_R 실제 실시간 1회 확인
+Signal v5 운영 확인
 필요 시 CMEH_R 호가 교차검증
 ```
 
@@ -1048,8 +1045,8 @@ Signal Engine 실제 KIS futures 반영  ✅
 Bridge 2차 수정본 재QA               ✅ 58/58 PASS
 근월물 자동 rollover                ✅ 구현
 KRX 세션/휴장 route                 ✅ 구현
-AUTO 휴장일 경계값 QA               ⏳ 다음 작업
-주간 FC_R live 확인                 ⏳ AUTO QA 이후
+AUTO 휴장일 경계값 QA               ✅ 53/53 PASS
+주간 FC_R live 확인                 ✅ 실증
 GitHub 연동                         ⏸ 현재 불필요
 ```
 
@@ -1069,16 +1066,10 @@ GitHub 연동                         ⏸ 현재 불필요
 
 ```text
 인수인계 확인 완료.
-Bridge 2차 실통신 기준 QA는 58/58 PASS이고, AUTO 근월물/세션 라우팅과 Market AI 12차 Signal 직접 입력 재정의까지 구현된 상태입니다.
-현재 다음 작업은 AUTO 휴장일 처리 경계값 QA입니다.
+Bridge 2차 실통신 기준 QA는 58/58 PASS이고, AUTO 휴장일 경계값 QA도 53/53 PASS했습니다.
+주간 FC_R 실제 실시간 수신까지 확인 완료했으며 현재 다음 작업은 Signal v5 운영 확인입니다.
 
-다음 요청: AUTO 휴장일 QA
+다음 요청: Signal v5 운영 확인
 ```
 
-`AUTO 휴장일 QA`가 PASS하면 다음 단계는:
-
-```text
-주간 FC_R 확인
-```
-
-이며, 실제 `FC_R` 수신 → C# Bridge → Market AI → Signal Engine 경로를 1회 실증한다.
+AUTO 휴장일 QA와 주간 FC_R 실증은 완료됐다. 다음 단계는 `Signal v5 운영 확인`으로, 실제 장중 신호의 입력·가중치·quality/freshness·DB 엔진 버전·대시보드 tooltip 정합을 확인한다.

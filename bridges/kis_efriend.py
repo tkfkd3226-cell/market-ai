@@ -129,9 +129,12 @@ class KisEFriendBridgeService:
         }
 
     def expected_route(self, at: datetime | None = None) -> dict[str, object]:
-        contract = self.expected_contract(at)
+        # Freeze one server-side instant for both contract and session resolution so
+        # a boundary crossing cannot produce a mixed route (old contract/new session).
+        route_at = at or datetime.now(timezone.utc)
+        contract = self.expected_contract(route_at)
         session = resolve_kospi200_market_session(
-            at,
+            route_at,
             closed_dates=self.krx_closed_dates,
             open_dates=self.krx_open_dates,
             night_closed_dates=self.krx_night_closed_dates,
@@ -147,31 +150,57 @@ class KisEFriendBridgeService:
             "session_calendar_source": session.calendar_source,
         }
 
-    def _expected_contract(self) -> dict[str, object]:
-        return self.expected_contract()
-
-    def _validate_instrument_code(self, instrument_code: str) -> str:
-        code = instrument_code.strip().upper()
-        expected = self._expected_contract()["instrument_code"]
-        if code != expected:
-            raise ValueError(
-                f"instrument_code must be {expected} for {KOSPI200_SYMBOL}"
-            )
-        return code
-
     @staticmethod
     def _validate_service_session(service: str, session_name: str) -> None:
         expected = "day" if service == "FC_R" else "night"
         if session_name != expected:
             raise ValueError(f"{service} requires session={expected}")
 
+    def _validate_expected_route(
+        self,
+        instrument_code: str,
+        service: str | None,
+        session_name: str,
+    ) -> str:
+        """Require the bridge payload to match the server's current AUTO route.
+
+        This is deliberately stricter than validating only the service/session pair:
+        an old or manually misrouted bridge must not be able to persist a night tick
+        during the day session (or vice versa), and CLOSED accepts heartbeat only.
+        """
+
+        route = self.expected_route()
+        code = instrument_code.strip().upper()
+        expected_code = str(route["instrument_code"])
+        expected_service = route["service"]
+        expected_session = str(route["session"])
+
+        if code != expected_code:
+            raise ValueError(
+                f"instrument_code must be {expected_code} for {KOSPI200_SYMBOL}"
+            )
+
+        if service != expected_service or session_name != expected_session:
+            expected_service_label = expected_service or "CLOSED"
+            actual_service_label = service or "CLOSED"
+            raise ValueError(
+                "bridge route must match current server route "
+                f"{expected_code}|{expected_service_label}|{expected_session}; "
+                f"got {code}|{actual_service_label}|{session_name}"
+            )
+        return code
+
     @staticmethod
     def _source(tick: KisEFriendTick) -> str:
         return f"{KIS_SOURCE_PREFIX}:{tick.session}:{tick.service}:{tick.instrument_code.strip().upper()}"
 
     def ingest_tick(self, tick: KisEFriendTick) -> dict[str, object]:
-        code = self._validate_instrument_code(tick.instrument_code)
         self._validate_service_session(tick.service, tick.session)
+        code = self._validate_expected_route(
+            tick.instrument_code,
+            tick.service,
+            tick.session,
+        )
         now = datetime.now(timezone.utc)
         source = self._source(tick)
 
@@ -235,7 +264,6 @@ class KisEFriendBridgeService:
             raise
 
     def ingest_heartbeat(self, heartbeat: KisEFriendHeartbeat) -> dict[str, object]:
-        code = self._validate_instrument_code(heartbeat.instrument_code)
         if heartbeat.session == "closed":
             if heartbeat.service is not None:
                 raise ValueError("session=closed requires service=null")
@@ -244,6 +272,11 @@ class KisEFriendBridgeService:
                 raise ValueError(f"session={heartbeat.session} requires a service")
             self._validate_service_session(heartbeat.service, heartbeat.session)
 
+        code = self._validate_expected_route(
+            heartbeat.instrument_code,
+            heartbeat.service,
+            heartbeat.session,
+        )
         now = datetime.now(timezone.utc)
         with self._lock:
             self.total_heartbeats += 1

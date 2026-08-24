@@ -28,12 +28,12 @@ Signal Engine 실제 KIS 선물 반영      ✅
 Bridge 2차 QA 수정 반영              ✅
 Bridge 2차 수정본 재QA               ✅ 58/58 PASS
 KOSPI200 근월물 자동 rollover        ✅ 구현
-AUTO 휴장일 경계값 QA               ⏳ 다음 작업
-주간 FC_R 실시간 확인                ⏳ AUTO QA 이후 실증
+AUTO 휴장일 경계값 QA               ✅ 53/53 PASS
+주간 FC_R 실시간 확인                ✅ 실증
 OpenAI 실제 API live QA             ⏸ 선택 기능 · 보류
 ```
 
-다음 작업 순서는 **AUTO 휴장일 처리 경계값 QA → 주간 `FC_R` 실제 실시간 수신 1회 확인**입니다.
+다음 작업은 **Signal v5 운영 확인**입니다. 실제 장중 데이터에서 4개 신호의 입력·가중치·품질·툴팁과 DB 저장 버전을 확인합니다.
 
 ---
 
@@ -328,7 +328,7 @@ quality = 1.0
 
 으로 실제 KIS 선물이 Signal Engine에 반영되는 것을 확인했습니다.
 
-주간 `FC_R`은 코드가 준비되어 있으나 실제 주간장에서 1회 live 확인이 남아 있습니다.
+주간 `FC_R`은 2026-08-24 실제 주간장에서 AUTO 라우팅 → 실시간 수신 → Market AI → 대시보드 표시까지 확인했습니다.
 
 ---
 
@@ -582,33 +582,15 @@ market_ai_project_handover.md
 
 라고 입력하면, 먼저 인수인계 문서를 읽고 **작업을 자동 시작하지 않은 상태에서** 다음 작업을 안내해야 합니다.
 
-Bridge 2차 수정본 QA는 **58/58 PASS로 완료**되었고, 이후 Market AI 10차에서 KOSPI200 AUTO 근월물/세션 라우팅이 구현되었습니다.
+Bridge 2차 수정본 QA는 **58/58 PASS**, AUTO 휴장일/만기/야간장 경계값 QA는 **53/53 PASS**했으며, 주간 `FC_R` 실제 실시간 수신도 확인 완료했습니다.
 
 현재 다음 요청:
 
 ```text
-AUTO 휴장일 QA
+Signal v5 운영 확인
 ```
 
-즉 새 채팅에서는:
-
-```text
-인수인계
-```
-
-→ 인수인계 확인 응답
-
-→ `AUTO 휴장일 QA`로 KRX 거래일·휴장일·만기일·야간장 경계값을 먼저 검증
-
-→ PASS 후 실제 주간장이 열린 시점에:
-
-```text
-주간 FC_R 확인
-```
-
-→ 실제 `FC_R` 수신 → C# Bridge → Market AI → Signal Engine 경로를 확인
-
-순서로 진행합니다.
+즉 새 채팅에서는 최신 ZIP의 인수인계 문서를 확인한 뒤, 실제 장중 데이터에서 4개 Signal의 입력·가중치·quality/freshness·DB `stage6_rule_v5` 저장·대시보드 tooltip 정합을 점검하는 순서로 진행합니다.
 
 ### 통합 로컬 실행
 
