@@ -5,3 +5,6 @@ KisKospi200Bridge/obj/
 /KisKospi200Bridge.exe.config
 /AxInterop.ITGExpertCtlLib.dll
 /Interop.ITGExpertCtlLib.dll
+
+__pycache__/
+*.py[cod]

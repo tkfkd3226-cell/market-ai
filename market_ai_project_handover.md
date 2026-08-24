@@ -170,7 +170,7 @@ Signal Engine
 
 ---
 
-# 5. Market AI 1~10차 완료 상태
+# 5. Market AI 1~12차 완료 상태
 
 ## 1차 — FastAPI + SQLite ✅
 
@@ -277,7 +277,7 @@ AI 입력은 현재 기사 전체 본문이 아니라 **headline + metadata + to
 - confidence
 - novelty
 - time_horizon
-- affected_assets
+- affected_assets (`INDEX:SOX`만 허용, 구형 `FUTURES:SOX` 제외)
 - KOSPI / 반도체 / NASDAQ100 / 유가 / 금리 / USDKRW 영향
 - 한국어 rationale
 
@@ -330,7 +330,7 @@ js/dashboard-market-ai.js
 대시보드 연동 원칙:
 
 - 가능하면 `dashboard-app.js`, `dashboard-ui.js`를 건드리지 않는다.
-- AI Market Signal은 웹/태블릿/모바일 모두 compact 한 줄 구조.
+- AI Market Signal은 Desktop Hero 우측, Tablet Hero 하단에 compact 보조 카드로 표시하고 Mobile/실제 터치폰 가로에서는 숨긴다.
 - GitHub Pages 등 비로컬 환경에서는 Market AI 영역을 완전히 숨기고 localhost 요청도 보내지 않는다.
 - 로컬 서버 오류 시 간단히 `서버 연결 안 됨`
 - 오래된 Signal은 `신호 지연`
@@ -420,6 +420,83 @@ KisKospi200Bridge/MainForm.cs
 - `MARKET_AI_KIS_KOSPI200_CODE`는 비워두는 것이 기본이며 긴급 고정 override로만 사용
 
 구현은 완료됐지만 **휴장일/만기일/야간장 경계값 QA와 주간 `FC_R` live 실증은 별도 남은 작업**이다.
+
+## 11차 — SOX 현물 전환 / Nasdaq-100 선물 우선순위 재조정 ✅
+
+2026-08-22 최신 기준.
+
+- 대시보드와 Signal Engine의 SOX 기준은 `INDEX:SOX` (`^SOX`) 현물지수다.
+- 기존 `FUTURES:SOX` (`SOX=F`)는 저유동성 문제 때문에 Signal 입력에서 제외하고 yfinance 자동 수집 대상에서도 제거한다. 기존 DB snapshot/history는 호환을 위해 삭제하지 않는다.
+- Nasdaq-100 선물 canonical symbol은 `FUTURES:NQ`이며 Yahoo provider symbol은 `NQ=F`다.
+- 엔진 버전은 `stage6_rule_v4`로 올려 기존 v3 calibration과 분리한다.
+- 핵심 시장 입력 우선순위는 모든 주요 신호에서 `KOSPI200 선물 > SOX 현물지수 > Nasdaq-100 선물`을 유지한다.
+
+가중치:
+
+```text
+KOSPI
+  KOSPI200 선물  0.22
+  SOX 현물지수   0.18
+  Nasdaq100 선물 0.14
+
+반도체
+  KOSPI200 선물  0.20
+  SOX 현물지수   0.18
+  Nasdaq100 선물 0.14
+
+갭상
+  KOSPI200 선물  0.25
+  SOX 현물지수   0.20
+  Nasdaq100 선물 0.16
+```
+
+나머지 입력은 각 weight map에서 합계 1.00이 되도록 재조정하며 freshness / quality 기반 effective weight 로직은 기존대로 유지한다.
+
+
+## 12차 — Signal 의미 재정의 / 직접 입력 분리 ✅
+
+2026-08-22 최신 기준. 이 항목이 11차의 가중치 설계보다 우선한다.
+
+대시보드에서 보이는 신호 이름과 실제 입력이 직관적으로 일치하도록 Rule Signal을 재정의했다.
+엔진 버전은 `stage6_rule_v5`로 올려 v4 이하 calibration과 분리한다.
+
+```text
+코스피
+  KOSPI 현물       0.35
+  KOSPI200 선물    0.65
+
+반도체
+  삼성전자          0.20
+  SK하이닉스        0.20
+  SOX 현물지수      0.20
+  NVIDIA            0.15
+  SK하이닉스 ADR    0.15
+  Micron            0.10
+
+갭상
+  KOSPI200 선물     0.50
+  SOX 현물지수      0.25
+  Nasdaq100 선물    0.20
+  USD/KRW           0.05
+
+상승마감
+  KOSPI 현물        0.45
+  KOSPI200 선물     0.35
+  SOX 현물지수      0.12
+  Nasdaq100 선물    0.08
+```
+
+운영 원칙:
+
+- 코스피 신호에 반도체/미국주식/금리/유가/뉴스를 섞지 않는다.
+- 반도체 신호에는 직접 반도체 자산만 사용한다.
+- 갭상은 국내장 개장 전 선행성이 높은 K200 > SOX > NQ 순서를 중심으로 사용한다.
+- 상승마감은 더 이상 `코스피 점수 × 55% + 반도체 점수 × 45%` 파생식으로 만들지 않고 직접 weight map을 사용한다.
+- 뉴스는 별도 수집/AI 분석 기능으로 유지하되 4개 Rule Signal weight에는 사용하지 않는다.
+- SOX는 `INDEX:SOX (^SOX)` 현물지수만 사용하고 `FUTURES:SOX (SOX=F)`는 catalog/자동수집에서 제외한다. 기존 DB 과거 데이터는 삭제하지 않는다.
+- freshness/quality 기반 유효가중치와 minimum data weight 정책은 유지한다.
+- `/api/signal/weights`는 `up_close` weight까지 반환한다.
+- `/api/signal/latest?include_details=true`의 `weights`, `market_components`, `qualities`가 대시보드 상세 tooltip의 단일 근거다.
 
 ---
 
@@ -828,7 +905,7 @@ eFriend Expert
 
 ---
 
-# 11. Market AI 10차 후속 검증 순서
+# 11. AUTO 근월물 / KRX 세션 라우팅 후속 검증 순서
 
 AUTO 근월물/세션 라우팅 구현 후의 검증 순서는 **정적·경계값 QA → 실제 주간 live 확인**이다.
 
@@ -956,7 +1033,7 @@ eFriendQA/
 # 14. 현재 상태 한눈에 보기
 
 ```text
-Market AI 1~10차                    ✅
+Market AI 1~12차                    ✅
 시장 데이터 / 뉴스                  ✅
 Signal Engine                       ✅
 Backtest / Calibration              ✅
@@ -992,7 +1069,7 @@ GitHub 연동                         ⏸ 현재 불필요
 
 ```text
 인수인계 확인 완료.
-Bridge 2차 실통신 기준 QA는 58/58 PASS이고, Market AI 10차 AUTO 근월물/세션 라우팅까지 구현된 상태입니다.
+Bridge 2차 실통신 기준 QA는 58/58 PASS이고, AUTO 근월물/세션 라우팅과 Market AI 12차 Signal 직접 입력 재정의까지 구현된 상태입니다.
 현재 다음 작업은 AUTO 휴장일 처리 경계값 QA입니다.
 
 다음 요청: AUTO 휴장일 QA
@@ -1005,81 +1082,3 @@ Bridge 2차 실통신 기준 QA는 58/58 PASS이고, Market AI 10차 AUTO 근월
 ```
 
 이며, 실제 `FC_R` 수신 → C# Bridge → Market AI → Signal Engine 경로를 1회 실증한다.
-
-
-## 11차 — SOX 현물 전환 / Nasdaq-100 선물 우선순위 재조정 ✅
-
-2026-08-22 최신 기준.
-
-- 대시보드와 Signal Engine의 SOX 기준은 `INDEX:SOX` (`^SOX`) 현물지수다.
-- 기존 `FUTURES:SOX` (`SOX=F`)는 저유동성 문제 때문에 Signal 입력에서 제외하고 yfinance 자동 수집 대상에서도 제거한다. 기존 DB snapshot/history는 호환을 위해 삭제하지 않는다.
-- Nasdaq-100 선물 canonical symbol은 `FUTURES:NQ`이며 Yahoo provider symbol은 `NQ=F`다.
-- 엔진 버전은 `stage6_rule_v4`로 올려 기존 v3 calibration과 분리한다.
-- 핵심 시장 입력 우선순위는 모든 주요 신호에서 `KOSPI200 선물 > SOX 현물지수 > Nasdaq-100 선물`을 유지한다.
-
-가중치:
-
-```text
-KOSPI
-  KOSPI200 선물  0.22
-  SOX 현물지수   0.18
-  Nasdaq100 선물 0.14
-
-반도체
-  KOSPI200 선물  0.20
-  SOX 현물지수   0.18
-  Nasdaq100 선물 0.14
-
-갭상
-  KOSPI200 선물  0.25
-  SOX 현물지수   0.20
-  Nasdaq100 선물 0.16
-```
-
-나머지 입력은 각 weight map에서 합계 1.00이 되도록 재조정하며 freshness / quality 기반 effective weight 로직은 기존대로 유지한다.
-
-
-## 12차 — Signal 의미 재정의 / 직접 입력 분리 ✅
-
-2026-08-22 최신 기준. 이 항목이 11차의 가중치 설계보다 우선한다.
-
-대시보드에서 보이는 신호 이름과 실제 입력이 직관적으로 일치하도록 Rule Signal을 재정의했다.
-엔진 버전은 `stage6_rule_v5`로 올려 v4 이하 calibration과 분리한다.
-
-```text
-코스피
-  KOSPI 현물       0.35
-  KOSPI200 선물    0.65
-
-반도체
-  삼성전자          0.20
-  SK하이닉스        0.20
-  SOX 현물지수      0.20
-  NVIDIA            0.15
-  SK하이닉스 ADR    0.15
-  Micron            0.10
-
-갭상
-  KOSPI200 선물     0.50
-  SOX 현물지수      0.25
-  Nasdaq100 선물    0.20
-  USD/KRW           0.05
-
-상승마감
-  KOSPI 현물        0.45
-  KOSPI200 선물     0.35
-  SOX 현물지수      0.12
-  Nasdaq100 선물    0.08
-```
-
-운영 원칙:
-
-- 코스피 신호에 반도체/미국주식/금리/유가/뉴스를 섞지 않는다.
-- 반도체 신호에는 직접 반도체 자산만 사용한다.
-- 갭상은 국내장 개장 전 선행성이 높은 K200 > SOX > NQ 순서를 중심으로 사용한다.
-- 상승마감은 더 이상 `코스피 점수 × 55% + 반도체 점수 × 45%` 파생식으로 만들지 않고 직접 weight map을 사용한다.
-- 뉴스는 별도 수집/AI 분석 기능으로 유지하되 4개 Rule Signal weight에는 사용하지 않는다.
-- SOX는 `INDEX:SOX (^SOX)` 현물지수만 사용하고 `FUTURES:SOX (SOX=F)`는 catalog/자동수집에서 제외한다. 기존 DB 과거 데이터는 삭제하지 않는다.
-- freshness/quality 기반 유효가중치와 minimum data weight 정책은 유지한다.
-- `/api/signal/weights`는 `up_close` weight까지 반환한다.
-- `/api/signal/latest?include_details=true`의 `weights`, `market_components`, `qualities`가 대시보드 상세 tooltip의 단일 근거다.

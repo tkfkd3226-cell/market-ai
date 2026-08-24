@@ -23,7 +23,6 @@ AI_ASSET = Literal[
     "NASDAQ:SKHY",
     "NASDAQ:NVDA",
     "NASDAQ:MU",
-    "FUTURES:SOX",
     "INDEX:SOX",
     "INDEX:KOSPI",
     "FUTURES:NQ",

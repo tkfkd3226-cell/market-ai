@@ -2,7 +2,7 @@
 
 로컬 PC에서 시장 데이터, 뉴스, 실제 KOSPI200 선물, Signal Engine, Backtest, Calibration을 통합해 **AI Market Signal**을 생성하는 프로젝트입니다.
 
-현재 기준은 **Market AI 1~10차 + KIS eFriend Expert KOSPI200 Futures Bridge 2차**까지 구현된 상태입니다.
+현재 기준은 **Market AI 1~12차 + KIS eFriend Expert KOSPI200 Futures Bridge 2차**까지 구현된 상태입니다.
 
 > 자동 주문 시스템이 아닙니다.  
 > 주문 API, 계좌번호, 계좌 비밀번호를 사용하지 않습니다.
@@ -12,11 +12,13 @@
 ## 현재 상태
 
 ```text
-Market AI 1~10차                    ✅
+Market AI 1~12차                    ✅
 시장 데이터 수집                     ✅
 뉴스 수집                           ✅
 OpenAI 뉴스 분석 코드                ✅
-Signal Engine                       ✅
+Signal Engine                       ✅ stage6_rule_v5
+SOX 현물 전환 / NQ 선물 기준 정리    ✅ 11차
+4개 Rule Signal 직접 입력 재정의     ✅ 12차
 Backtest                            ✅
 Calibration                         ✅
 eFriend Expert C# Bridge            ✅
@@ -477,6 +479,7 @@ MARKET_AI_AI_ENABLED=false
 API Key는 채팅, ZIP, GitHub에 넣지 않습니다.
 
 API Key가 없으면 `disabled_by_config`로 취급하며 오류가 아닙니다. API Key가 있어도 `MARKET_AI_AI_ENABLED=false`이면 자동 분석은 `manual_only` 상태로 유지되고 `POST /api/ai-news/run-once` 수동 테스트는 가능합니다. 비활성 상태에서는 과거 DB에 AI 뉴스 분석이 남아 있어도 새 Signal 계산에는 사용하지 않습니다.
+AI 뉴스의 `affected_assets` 허용 목록에서도 SOX는 `INDEX:SOX`만 사용하며 구형 `FUTURES:SOX`는 허용하지 않습니다.
 
 ---
 
