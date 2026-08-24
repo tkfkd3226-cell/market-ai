@@ -16,7 +16,7 @@ Market AI 1~12차                    ✅
 시장 데이터 수집                     ✅
 뉴스 수집                           ✅
 OpenAI 뉴스 분석 코드                ✅
-Signal Engine                       ✅ stage6_rule_v6
+Signal Engine                       ✅ stage6_rule_v7
 SOX 현물 전환 / NQ 선물 기준 정리    ✅ 11차
 4개 Rule Signal 직접 입력 재정의     ✅ 12차
 Backtest                            ✅
@@ -33,7 +33,7 @@ AUTO 휴장일 경계값 QA               ✅ 53/53 PASS
 OpenAI 실제 API live QA             ⏸ 선택 기능 · 보류
 ```
 
-다음 작업은 **Signal v6 운영 확인**입니다. 실제 장중 데이터에서 4개 신호의 입력·가중치·품질·툴팁과 DB 저장 버전을 확인합니다.
+다음 작업은 **Signal v7 운영 확인**입니다. 갭상/상승마감의 장전·장중·장마감 시간대 전환과 대시보드 tooltip 상태를 실제 운영 데이터로 확인합니다.
 
 ---
 
@@ -408,7 +408,7 @@ POST /api/signal/run-once
 현재 Signal Engine:
 
 ```text
-stage6_rule_v6
+stage6_rule_v7
 ```
 
 대시보드의 4개 신호는 이름과 입력 의미가 일치하도록 분리합니다.
@@ -417,8 +417,12 @@ stage6_rule_v6
 코스피      KOSPI 현물 35% + KOSPI200 선물 65%
 반도체      삼성전자 20% + SK하이닉스 20% + SOX 20%
             + NVIDIA 15% + SK하이닉스 ADR 15% + Micron 10%
-갭상        KOSPI200 선물 50% + SOX 25% + Nasdaq-100 선물 20% + USD/KRW 5%
-상승마감    KOSPI 현물 45% + KOSPI200 선물 35% + SOX 12% + Nasdaq-100 선물 8%
+갭상        장전/비거래일: KOSPI200 선물 50% + SOX 25% + Nasdaq-100 선물 20% + USD/KRW 5%
+            장중: 09:00 직전 마지막 장전 신호를 고정
+            장마감 후: 다음 KRX 거래일 갭 예측으로 전환
+상승마감    장전: KOSPI200 선물 50% + SOX 30% + Nasdaq-100 선물 20%
+            장중: KOSPI 현물 45% + KOSPI200 선물 35% + SOX 12% + Nasdaq-100 선물 8%
+            15:30 이후: KOSPI 종가 snapshot이 확정되면 실제 상승/하락/보합 결과로 종료
 ```
 
 - SOX는 저유동성 선물(`SOX=F`)이 아니라 **PHLX 반도체 현물지수** `INDEX:SOX` (`^SOX`)를 사용합니다.
@@ -426,7 +430,10 @@ stage6_rule_v6
 - 뉴스, 금리, 유가 등은 이 4개 Rule Signal의 weight map에 섞지 않습니다.
 - freshness와 quality는 각 입력의 실제 유효 가중치에 계속 반영됩니다.
 - `FUTURES:SOX`의 기존 DB snapshot/history는 삭제하지 않지만 catalog와 자동수집 대상에서는 제외합니다.
-- `stage6_rule_v6`부터 비보정 상태의 4개 Rule Signal은 모두 동일한 **직접 가중 0~100 점수**를 반환합니다. 기존 `gap_up_probability`, `up_close_probability` 필드명은 API/DB 호환을 위해 유지하지만 별도의 0.85 압축 변환은 더 이상 적용하지 않습니다.
+- `stage6_rule_v7`은 v6의 직접 가중 0~100 원칙을 유지하면서 갭상/상승마감에 KRX 현금장 시간대 의미를 추가합니다. 기존 `gap_up_probability`, `up_close_probability` 필드명은 API/DB 호환을 위해 유지합니다.
+- 장중 갭상은 새로 계산하지 않고 09:00 직전 마지막 장전 예측을 고정합니다. 장전 체크포인트가 없으면 유효 신호 없음으로 표시합니다.
+- 상승마감은 장전/장중 weight map을 분리하고, 15:30 이후 당일 KOSPI 종가 snapshot이 확인되면 예측 점수 대신 실제 마감 결과로 전환합니다.
+- 시간대가 다른 상승마감 점수에 장전용 Calibration을 잘못 적용하지 않도록, v7은 signal phase별 calibration eligibility를 함께 저장합니다.
 
 세부 weight와 component 목록은 `GET /api/signal/weights`, 실제 계산 근거는 `GET /api/signal/latest?include_details=true`에서 확인합니다.
 
@@ -588,10 +595,10 @@ Bridge 2차 수정본 QA는 **58/58 PASS**, AUTO 휴장일/만기/야간장 경�
 현재 다음 요청:
 
 ```text
-Signal v6 운영 확인
+Signal v7 운영 확인
 ```
 
-즉 새 채팅에서는 최신 ZIP의 인수인계 문서를 확인한 뒤, 실제 장중 데이터에서 4개 Signal의 직접 0~100 점수·입력·가중치·quality/freshness·DB `stage6_rule_v6` 저장·대시보드 tooltip 정합을 점검하는 순서로 진행합니다.
+즉 새 채팅에서는 최신 ZIP의 인수인계 문서를 확인한 뒤, 실제 장중 데이터에서 4개 Signal의 직접 0~100 점수·입력·가중치·quality/freshness·DB `stage6_rule_v7` 저장·시간대 상태·대시보드 tooltip 정합을 점검하는 순서로 진행합니다.
 
 ### 통합 로컬 실행
 

@@ -3,15 +3,17 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from db.models import MarketSnapshot
+from bridges.kospi200_contract import is_krx_trading_day
+from config import KIS_EFRIEND_KRX_CLOSED_DATES, KIS_EFRIEND_KRX_OPEN_DATES
+from db.models import MarketSnapshot, SignalRun
 
 
-ENGINE_VERSION = "stage6_rule_v6"
+ENGINE_VERSION = "stage6_rule_v7"
 
 
 @dataclass(frozen=True)
@@ -115,13 +117,29 @@ GAP_UP_WEIGHTS = {
     "usdkrw": 0.05,
 }
 
-# Up-close signal is now a direct market score, not a KOSPI/semi score blend.
-UP_CLOSE_WEIGHTS = {
+# Up-close changes its input profile by KRX cash-session phase.
+# Before the cash open, only leading overnight indicators are used.
+UP_CLOSE_PREOPEN_WEIGHTS = {
+    "kospi200_futures": 0.50,
+    "sox_index": 0.30,
+    "nasdaq100_futures": 0.20,
+}
+
+# During the KRX cash session, live KOSPI direction becomes the primary input.
+UP_CLOSE_INTRADAY_WEIGHTS = {
     "kospi_index": 0.45,
     "kospi200_futures": 0.35,
     "sox_index": 0.12,
     "nasdaq100_futures": 0.08,
 }
+
+# Backward-compatible alias for callers that still expect one up-close map.
+UP_CLOSE_WEIGHTS = UP_CLOSE_INTRADAY_WEIGHTS
+
+KST = timezone(timedelta(hours=9), name="KST")
+KRX_CASH_OPEN = time(hour=9, minute=0)
+KRX_CASH_CLOSE = time(hour=15, minute=30)
+CHECKPOINT_ENGINE_VERSIONS = (ENGINE_VERSION, "stage6_rule_v6")
 
 
 @dataclass
@@ -278,6 +296,172 @@ def _directional_agreement(values: list[float]) -> float:
     return _clamp(1.0 - sum(differences) / max(1, len(differences)), 0.0, 1.0)
 
 
+def _krx_trading_day(day: date) -> tuple[bool, str]:
+    return is_krx_trading_day(
+        day,
+        closed_dates=KIS_EFRIEND_KRX_CLOSED_DATES,
+        open_dates=KIS_EFRIEND_KRX_OPEN_DATES,
+    )
+
+
+def _next_krx_trading_day(day: date) -> tuple[date, str]:
+    candidate = day
+    for _ in range(16):
+        is_open, source = _krx_trading_day(candidate)
+        if is_open:
+            return candidate, source
+        candidate += timedelta(days=1)
+    raise RuntimeError(f"unable to resolve next KRX trading day from {day.isoformat()}")
+
+
+def _kst_at(day: date, clock: time) -> datetime:
+    return datetime.combine(day, clock, tzinfo=KST)
+
+
+def _session_context(now_utc: datetime) -> dict[str, object]:
+    local = now_utc.astimezone(KST)
+    today = local.date()
+    trading_today, calendar_source = _krx_trading_day(today)
+
+    if not trading_today:
+        target_date, target_source = _next_krx_trading_day(today + timedelta(days=1))
+        return {
+            "phase": "preopen_next_session",
+            "trading_today": False,
+            "calendar_source": calendar_source,
+            "target_session_date": target_date,
+            "target_calendar_source": target_source,
+            "local_now": local,
+        }
+
+    if local.time() < KRX_CASH_OPEN:
+        phase = "preopen"
+    elif local.time() < KRX_CASH_CLOSE:
+        phase = "intraday"
+    else:
+        phase = "post_close"
+
+    return {
+        "phase": phase,
+        "trading_today": True,
+        "calendar_source": calendar_source,
+        "target_session_date": today,
+        "target_calendar_source": calendar_source,
+        "local_now": local,
+    }
+
+
+def _signal_score(row: SignalRun, target: str) -> float:
+    if target == "gap_up":
+        return float(row.gap_up_probability)
+    if target == "up_close":
+        return float(row.up_close_probability)
+    raise KeyError(target)
+
+
+def _decode_row_details(row: SignalRun) -> dict[str, object]:
+    try:
+        payload = json.loads(row.details_json or "{}")
+    except (TypeError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _checkpoint_basis(details: dict[str, object], target: str) -> list[dict[str, object]]:
+    weights_root = details.get("weights")
+    weights = weights_root.get(target, {}) if isinstance(weights_root, dict) else {}
+    qualities = details.get("qualities") if isinstance(details.get("qualities"), dict) else {}
+    components = (
+        details.get("market_components")
+        if isinstance(details.get("market_components"), dict)
+        else {}
+    )
+    result: list[dict[str, object]] = []
+    if not isinstance(weights, dict):
+        return result
+    for key, configured_weight in weights.items():
+        try:
+            weight = float(configured_weight)
+        except (TypeError, ValueError):
+            continue
+        record = components.get(key, {}) if isinstance(components.get(key), dict) else {}
+        if record.get("available") is False:
+            continue
+        quality_raw = qualities.get(key, record.get("quality"))
+        try:
+            quality = float(quality_raw)
+        except (TypeError, ValueError):
+            quality = None
+        result.append({
+            "key": key,
+            "weight": round(weight, 6),
+            "quality": None if quality is None else round(_clamp(quality, 0.0, 1.0), 4),
+        })
+    return result
+
+
+def _latest_checkpoint(
+    session: Session,
+    *,
+    target: str,
+    start_at: datetime,
+    end_at: datetime,
+) -> dict[str, object] | None:
+    row = session.scalar(
+        select(SignalRun)
+        .where(SignalRun.engine_version.in_(CHECKPOINT_ENGINE_VERSIONS))
+        .where(SignalRun.created_at >= start_at.astimezone(timezone.utc))
+        .where(SignalRun.created_at < end_at.astimezone(timezone.utc))
+        .order_by(SignalRun.created_at.desc(), SignalRun.id.desc())
+        .limit(1)
+    )
+    if row is None:
+        return None
+    details = _decode_row_details(row)
+    effective_root = details.get("effective_weight")
+    effective = effective_root.get(target) if isinstance(effective_root, dict) else None
+    try:
+        effective_weight = float(effective)
+    except (TypeError, ValueError):
+        effective_weight = 1.0
+    score = _signal_score(row, target)
+    return {
+        "score": score,
+        "direction": _clamp((score - 50.0) / 50.0, -1.0, 1.0),
+        "created_at": _as_utc(row.created_at),
+        "engine_version": row.engine_version,
+        "effective_weight": _clamp(effective_weight, 0.0, 1.0),
+        "basis": _checkpoint_basis(details, target),
+    }
+
+
+def _final_kospi_state(
+    snapshot_map: dict[str, MarketSnapshot],
+    *,
+    session_date: date,
+) -> dict[str, object] | None:
+    row = snapshot_map.get("INDEX:KOSPI")
+    if row is None or row.change_pct is None:
+        return None
+    observed_local = _as_utc(row.observed_at).astimezone(KST)
+    if observed_local.date() != session_date or observed_local.time() < KRX_CASH_CLOSE:
+        return None
+    change_pct = float(row.change_pct)
+    if change_pct > 0:
+        direction, label = 1.0, "상승"
+    elif change_pct < 0:
+        direction, label = -1.0, "하락"
+    else:
+        direction, label = 0.0, "보합"
+    return {
+        "direction": direction,
+        "score": _direction_to_score(direction),
+        "label": label,
+        "change_pct": change_pct,
+        "observed_at": _as_utc(row.observed_at),
+    }
+
+
 def build_signal(
     session: Session,
     *,
@@ -286,11 +470,16 @@ def build_signal(
     ai_news_active: bool,
     now: datetime | None = None,
 ) -> SignalResult | None:
-    # news_lookback_hours / ai_news_active remain in the public function signature
-    # for service/API compatibility. v5 deliberately does not use news inputs.
+    # News arguments remain in the public signature for service/API compatibility.
     del news_lookback_hours, ai_news_active
 
     now_utc = _as_utc(now or datetime.now(timezone.utc))
+    session_ctx = _session_context(now_utc)
+    phase = str(session_ctx["phase"])
+    local_now = session_ctx["local_now"]
+    today = local_now.date()
+    current_session_date = session_ctx["target_session_date"]
+
     snapshots = list(session.scalars(select(MarketSnapshot)).all())
     snapshot_map = {row.symbol: row for row in snapshots}
 
@@ -310,14 +499,139 @@ def build_signal(
 
     kospi_direction, kospi_available_weight = _combine(KOSPI_WEIGHTS, directions, qualities)
     semi_direction, semi_available_weight = _combine(SEMICONDUCTOR_WEIGHTS, directions, qualities)
-    gap_direction, gap_available_weight = _combine(GAP_UP_WEIGHTS, directions, qualities)
-    up_close_direction, up_close_available_weight = _combine(UP_CLOSE_WEIGHTS, directions, qualities)
+
+    gap_state: dict[str, object]
+    gap_weights = GAP_UP_WEIGHTS
+    if phase == "intraday":
+        open_at = _kst_at(today, KRX_CASH_OPEN)
+        checkpoint = _latest_checkpoint(
+            session,
+            target="gap_up",
+            start_at=open_at - timedelta(hours=18),
+            end_at=open_at,
+        )
+        if checkpoint is None:
+            gap_direction, gap_available_weight, gap_score = 0.0, 0.0, 50.0
+            gap_state = {
+                "mode": "locked_preopen",
+                "available": False,
+                "target_session_date": today.isoformat(),
+                "note": "장 시작 전 저장된 갭상 신호가 없어 장중에는 새 예측을 만들지 않습니다.",
+            }
+        else:
+            gap_direction = float(checkpoint["direction"])
+            gap_available_weight = float(checkpoint["effective_weight"])
+            gap_score = float(checkpoint["score"])
+            gap_state = {
+                "mode": "locked_preopen",
+                "available": True,
+                "target_session_date": today.isoformat(),
+                "forecast_at": checkpoint["created_at"].isoformat().replace("+00:00", "Z"),
+                "checkpoint_engine_version": checkpoint["engine_version"],
+                "basis": checkpoint["basis"],
+                "note": "09:00 개장 직전 마지막 갭상 예측값을 장중 고정 표시합니다.",
+            }
+    else:
+        gap_direction, gap_available_weight = _combine(GAP_UP_WEIGHTS, directions, qualities)
+        gap_score = _direction_to_score(gap_direction)
+        if phase == "post_close":
+            gap_target_date, gap_calendar_source = _next_krx_trading_day(today + timedelta(days=1))
+            gap_mode = "next_session_preopen"
+        elif phase == "preopen_next_session":
+            gap_target_date = current_session_date
+            gap_calendar_source = session_ctx["target_calendar_source"]
+            gap_mode = "next_session_preopen"
+        else:
+            gap_target_date = current_session_date
+            gap_calendar_source = session_ctx["target_calendar_source"]
+            gap_mode = "live_preopen"
+        gap_state = {
+            "mode": gap_mode,
+            "available": gap_available_weight > 0,
+            "target_session_date": gap_target_date.isoformat(),
+            "calendar_source": gap_calendar_source,
+            "forecast_at": now_utc.isoformat().replace("+00:00", "Z"),
+            "note": "KOSPI 시가 이전/다음 거래일의 갭 방향을 선행시장으로 예측합니다.",
+        }
+
+    if phase in {"preopen", "preopen_next_session"}:
+        up_close_weights = UP_CLOSE_PREOPEN_WEIGHTS
+        up_close_direction, up_close_available_weight = _combine(
+            up_close_weights, directions, qualities
+        )
+        up_close_score = _direction_to_score(up_close_direction)
+        up_close_state = {
+            "mode": "preopen_forecast",
+            "available": up_close_available_weight > 0,
+            "target_session_date": current_session_date.isoformat(),
+            "forecast_at": now_utc.isoformat().replace("+00:00", "Z"),
+            "note": "장전에는 K200 선물·SOX·NQ100 선물만으로 상승마감을 예측합니다.",
+        }
+    elif phase == "intraday":
+        up_close_weights = UP_CLOSE_INTRADAY_WEIGHTS
+        up_close_direction, up_close_available_weight = _combine(
+            up_close_weights, directions, qualities
+        )
+        up_close_score = _direction_to_score(up_close_direction)
+        up_close_state = {
+            "mode": "intraday_forecast",
+            "available": up_close_available_weight > 0,
+            "target_session_date": today.isoformat(),
+            "forecast_at": now_utc.isoformat().replace("+00:00", "Z"),
+            "note": "장중에는 KOSPI 현물 흐름을 포함해 상승마감을 계속 갱신합니다.",
+        }
+    else:
+        final_state = _final_kospi_state(snapshot_map, session_date=today)
+        if final_state is not None:
+            up_close_weights = {"kospi_index": 1.0}
+            up_close_direction = float(final_state["direction"])
+            up_close_available_weight = 1.0
+            up_close_score = float(final_state["score"])
+            up_close_state = {
+                "mode": "actual_close",
+                "available": True,
+                "target_session_date": today.isoformat(),
+                "actual_label": final_state["label"],
+                "actual_change_pct": round(float(final_state["change_pct"]), 4),
+                "actual_at": final_state["observed_at"].isoformat().replace("+00:00", "Z"),
+                "note": "15:30 이후에는 예측값 대신 실제 KOSPI 상승·하락 마감 결과를 표시합니다.",
+            }
+        else:
+            close_at = _kst_at(today, KRX_CASH_CLOSE)
+            checkpoint = _latest_checkpoint(
+                session,
+                target="up_close",
+                start_at=_kst_at(today, KRX_CASH_OPEN),
+                end_at=close_at,
+            )
+            up_close_weights = UP_CLOSE_INTRADAY_WEIGHTS
+            if checkpoint is None:
+                up_close_direction, up_close_available_weight, up_close_score = 0.0, 0.0, 50.0
+                up_close_state = {
+                    "mode": "post_close_pending",
+                    "available": False,
+                    "target_session_date": today.isoformat(),
+                    "note": "종가 snapshot과 장중 체크포인트가 아직 없어 마감 결과를 확정할 수 없습니다.",
+                }
+            else:
+                up_close_direction = float(checkpoint["direction"])
+                up_close_available_weight = float(checkpoint["effective_weight"])
+                up_close_score = float(checkpoint["score"])
+                up_close_state = {
+                    "mode": "post_close_pending",
+                    "available": True,
+                    "target_session_date": today.isoformat(),
+                    "forecast_at": checkpoint["created_at"].isoformat().replace("+00:00", "Z"),
+                    "checkpoint_engine_version": checkpoint["engine_version"],
+                    "basis": checkpoint["basis"],
+                    "note": "15:30 종가 snapshot 확정 전까지 마지막 장중 예측값을 유지합니다.",
+                }
 
     eligible_weights = {
         "kospi": sum(KOSPI_WEIGHTS.values()),
         "semiconductors": sum(SEMICONDUCTOR_WEIGHTS.values()),
-        "gap_up": sum(GAP_UP_WEIGHTS.values()),
-        "up_close": sum(UP_CLOSE_WEIGHTS.values()),
+        "gap_up": sum(gap_weights.values()),
+        "up_close": sum(up_close_weights.values()),
     }
     available_weights = {
         "kospi": kospi_available_weight,
@@ -338,20 +652,28 @@ def build_signal(
 
     kospi_score = _direction_to_score(kospi_direction)
     semiconductor_score = _direction_to_score(semi_direction)
-    gap_score = _direction_to_score(gap_direction)
-    up_close_score = _direction_to_score(up_close_direction)
 
-    # Confidence remains a data/consensus indicator, not forecast accuracy.
-    directional_agreement = _directional_agreement([
-        kospi_direction,
-        semi_direction,
-        gap_direction,
-        up_close_direction,
-    ])
+    agreement_values = [
+        direction
+        for direction, available in (
+            (kospi_direction, kospi_available_weight),
+            (semi_direction, semi_available_weight),
+            (gap_direction, gap_available_weight),
+            (up_close_direction, up_close_available_weight),
+        )
+        if available > 0
+    ]
+    directional_agreement = _directional_agreement(agreement_values)
     confidence = round(
         _clamp(0.65 * data_completeness + 0.35 * directional_agreement, 0.0, 1.0),
         4,
     )
+
+    calibration_eligible = ["kospi_up", "semiconductor_up"]
+    if gap_state.get("available"):
+        calibration_eligible.append("gap_up")
+    if up_close_state.get("mode") == "preopen_forecast" and up_close_state.get("available"):
+        calibration_eligible.append("up_close")
 
     details = {
         "method": ENGINE_VERSION,
@@ -361,19 +683,31 @@ def build_signal(
             "calibrated unless a Stage 9 calibration model is returned separately."
         ),
         "created_at": now_utc.isoformat().replace("+00:00", "Z"),
+        "session_phase": {
+            "phase": phase,
+            "kst": local_now.isoformat(),
+            "trading_today": bool(session_ctx["trading_today"]),
+            "calendar_source": session_ctx["calendar_source"],
+        },
+        "signal_state": {
+            "gap_up": gap_state,
+            "up_close": up_close_state,
+        },
+        "calibration_eligible_targets": calibration_eligible,
         "input_policy": {
             "news_used": False,
-            "macro_used": ["USD/KRW"] ,
+            "macro_used": ["USD/KRW"],
             "note": (
-                "v5 keeps each dashboard signal literal: KOSPI uses KOSPI/KOSPI200 futures; "
-                "semiconductors use direct semiconductor assets; gap/up-close use their explicit maps."
+                "v7 adds KRX cash-session semantics: gap-up is live before the target open and "
+                "locked during that cash session; up-close uses leading inputs pre-open, live KOSPI "
+                "during the session, and the actual KOSPI close after 15:30 when available."
             ),
         },
         "weights": {
             "kospi": KOSPI_WEIGHTS,
             "semiconductors": SEMICONDUCTOR_WEIGHTS,
-            "gap_up": GAP_UP_WEIGHTS,
-            "up_close": UP_CLOSE_WEIGHTS,
+            "gap_up": gap_weights,
+            "up_close": up_close_weights,
         },
         "eligible_weight": {
             key: round(value, 4) for key, value in eligible_weights.items()
@@ -390,8 +724,8 @@ def build_signal(
         "scores": {
             "kospi": kospi_score,
             "semiconductors": semiconductor_score,
-            "gap_up": gap_score,
-            "up_close": up_close_score,
+            "gap_up": round(gap_score, 2),
+            "up_close": round(up_close_score, 2),
         },
     }
 
@@ -400,16 +734,13 @@ def build_signal(
         engine_version=ENGINE_VERSION,
         kospi_score=kospi_score,
         semiconductor_score=semiconductor_score,
-        # Legacy API/DB field names are preserved, but all four uncalibrated
-        # Rule Signals now expose the same direct weighted 0-100 score.
-        gap_up_probability=gap_score,
-        up_close_probability=up_close_score,
+        gap_up_probability=round(gap_score, 2),
+        up_close_probability=round(up_close_score, 2),
         confidence=confidence,
         data_completeness=data_completeness,
         calibrated=False,
         details=details,
     )
-
 
 def encode_details(details: dict[str, object]) -> str:
     return json.dumps(details, ensure_ascii=False, separators=(",", ":"))

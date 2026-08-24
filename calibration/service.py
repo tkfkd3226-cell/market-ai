@@ -477,10 +477,19 @@ def apply_active_models_to_signal(session: Session, signal: SignalRun) -> Signal
         "gap_up": float(signal.gap_up_probability),
         "up_close": float(signal.up_close_probability),
     }
+    signal_details = _json_dict(signal.details_json)
+    eligible_raw = signal_details.get("calibration_eligible_targets")
+    eligible_targets = (
+        {str(item) for item in eligible_raw}
+        if isinstance(eligible_raw, list)
+        else set(scores)
+    )
     probabilities: dict[str, float] = {}
     model_ids: dict[str, int] = {}
     model_meta: dict[str, object] = {}
     for target, score in scores.items():
+        if target not in eligible_targets:
+            continue
         model = models.get(target)
         if model is None:
             continue

@@ -91,6 +91,8 @@ from signals.engine import (
     GAP_UP_WEIGHTS,
     KOSPI_WEIGHTS,
     SEMICONDUCTOR_WEIGHTS,
+    UP_CLOSE_PREOPEN_WEIGHTS,
+    UP_CLOSE_INTRADAY_WEIGHTS,
     UP_CLOSE_WEIGHTS,
 )
 from signals.service import SignalService
@@ -898,6 +900,18 @@ def signal_weights() -> dict[str, object]:
             "semiconductors": SEMICONDUCTOR_WEIGHTS,
             "gap_up": GAP_UP_WEIGHTS,
             "up_close": UP_CLOSE_WEIGHTS,
+        },
+        "phase_policy": {
+            "gap_up": {
+                "preopen": GAP_UP_WEIGHTS,
+                "intraday": "lock latest signal created before 09:00 KST",
+                "post_close": "forecast the next KRX trading session",
+            },
+            "up_close": {
+                "preopen": UP_CLOSE_PREOPEN_WEIGHTS,
+                "intraday": UP_CLOSE_INTRADAY_WEIGHTS,
+                "post_close": "actual KOSPI close direction once the 15:30+ snapshot is available",
+            },
         },
     }
 

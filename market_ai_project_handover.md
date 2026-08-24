@@ -2,7 +2,7 @@
 
 > 기준 시점: 2026-08-24 14:48 KST  
 > 기준본: 이 문서와 함께 첨부되는 **최신 `market-ai` ZIP**  
-> 현재 다음 작업: **Signal v6 운영 확인**
+> 현재 다음 작업: **Signal v7 운영 확인**
 
 ---
 
@@ -16,13 +16,13 @@
 4. 현재 다음 작업이 아래임을 짧게 알려준다.
 
 ```text
-Signal v6 운영 확인
+Signal v7 운영 확인
 ```
 
 5. 답변 마지막에 반드시 아래처럼 안내하고 사용자 입력을 기다린다.
 
 ```text
-다음 요청: Signal v6 운영 확인
+다음 요청: Signal v7 운영 확인
 ```
 
 권장 응답 예:
@@ -30,9 +30,9 @@ Signal v6 운영 확인
 ```text
 인수인계 확인 완료.
 AUTO 휴장일 경계값 QA는 53/53 PASS했고, 주간 FC_R 실제 실시간 수신도 확인 완료했습니다.
-현재 다음 작업은 Signal v6 운영 확인입니다.
+현재 다음 작업은 Signal v7 운영 확인입니다.
 
-다음 요청: Signal v6 운영 확인
+다음 요청: Signal v7 운영 확인
 ```
 
 ---
@@ -967,7 +967,7 @@ AUTO 휴장일/만기일/야간장 경계값 QA ✅ 53/53 PASS
 남음:
 
 ```text
-Signal v6 운영 확인
+Signal v7 운영 확인
 필요 시 CMEH_R 호가 교차검증
 ```
 
@@ -1008,7 +1008,35 @@ up_close_probability    = direct weighted score  # legacy field name 유지
 
 ---
 
-# 14. 파일/보존 관련 주의
+## 14차 — 갭상/상승마감 시간대 의미 분리 ✅
+
+`stage6_rule_v7`부터 갭상과 상승마감은 KRX 현금장 시간대에 따라 의미를 분리한다. v6의 직접 가중 0~100 점수 원칙은 유지한다.
+
+```text
+갭상
+- 장전(<09:00) / 비거래일: K200 50% + SOX 25% + NQ100 20% + USD/KRW 5% 실시간 예측
+- 장중(09:00~15:30): 09:00 직전 마지막 장전 신호를 고정
+- 장마감 후(>=15:30): 다음 KRX 거래일 갭 예측으로 전환
+
+상승마감
+- 장전: K200 50% + SOX 30% + NQ100 20%
+- 장중: KOSPI 45% + K200 35% + SOX 12% + NQ100 8%
+- 15:30 이후: 당일 KOSPI 종가 snapshot 확인 시 실제 상승/하락/보합으로 종료
+```
+
+보존 규칙:
+- 장중 갭상은 개장 후 데이터를 섞어 다시 계산하지 않는다. 장전 체크포인트가 없으면 `--`로 표시한다.
+- 장마감 직후 KOSPI 종가 snapshot이 아직 확정되지 않았으면 마지막 장중 상승마감 예측을 잠시 유지하고 `종가 확정 대기`로 표시한다.
+- 주말/휴장일에는 다음 KRX 거래일을 대상으로 장전 예측 모드로 동작한다.
+- `signal.details.signal_state`에 phase/mode/대상 거래일/체크포인트 시각을 저장한다.
+- Stage 9 Calibration은 `calibration_eligible_targets`를 따라 적용하며, 장중/마감확정 `up_close`에는 장전 학습 모델을 적용하지 않는다.
+- 계산 의미가 달라졌으므로 엔진 버전은 `stage6_rule_v7`로 분리하며 v6 이하 기록은 이력으로 보존한다.
+
+다음 작업: **Signal v7 운영 확인**
+
+---
+
+# 15. 파일/보존 관련 주의
 
 ## 반드시 보존
 
@@ -1054,7 +1082,7 @@ eFriendQA/
 ```text
 Market AI 1~13차                    ✅
 시장 데이터 / 뉴스                  ✅
-Signal Engine                       ✅ stage6_rule_v6
+Signal Engine                       ✅ stage6_rule_v7
 Backtest / Calibration              ✅
 투자 대시보드 Market AI 연동         ✅
 OpenAI 실제 API live QA             ⏸ 선택 기능 · 보류
@@ -1089,9 +1117,9 @@ GitHub 연동                         ⏸ 현재 불필요
 ```text
 인수인계 확인 완료.
 Bridge 2차 실통신 기준 QA는 58/58 PASS이고, AUTO 휴장일 경계값 QA도 53/53 PASS했습니다.
-주간 FC_R 실제 실시간 수신과 Signal v5 운영 QA까지 확인했고, 점수 출력 정합성 수정으로 현재 엔진은 stage6_rule_v6입니다.
+주간 FC_R 실제 실시간 수신과 Signal v5 운영 QA까지 확인했고, 점수 출력 정합성 수정으로 현재 엔진은 stage6_rule_v7입니다.
 
-다음 요청: Signal v6 운영 확인
+다음 요청: Signal v7 운영 확인
 ```
 
-AUTO 휴장일 QA와 주간 FC_R 실증, Signal v5 운영 QA는 완료됐다. 다음 단계는 `Signal v6 운영 확인`으로, 네 Rule Signal이 직접 0~100 점수와 tooltip 근거값에 일치하는지, DB가 `stage6_rule_v6`로 저장되는지 확인한다.
+AUTO 휴장일 QA와 주간 FC_R 실증, Signal v5 운영 QA는 완료됐다. 다음 단계는 `Signal v7 운영 확인`으로, 네 Rule Signal이 직접 0~100 점수와 tooltip 근거값에 일치하는지, DB가 `stage6_rule_v7`로 저장되는지 확인한다.
