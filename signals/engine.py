@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from db.models import MarketSnapshot
 
 
-ENGINE_VERSION = "stage6_rule_v5"
+ENGINE_VERSION = "stage6_rule_v6"
 
 
 @dataclass(frozen=True)
@@ -150,13 +150,6 @@ def _clamp(value: float, low: float, high: float) -> float:
 
 def _direction_to_score(direction: float) -> float:
     return round(50.0 + 50.0 * _clamp(direction, -1.0, 1.0), 2)
-
-
-def _score_to_heuristic_probability(score: float) -> float:
-    # Rule scores are intentionally not statistical probabilities. Keep the
-    # legacy field names for API/backtest compatibility and bound the mapping.
-    value = 50.0 + (score - 50.0) * 0.85
-    return round(_clamp(value, 10.0, 90.0), 2)
 
 
 def _freshness_weight(observed_at: datetime, now: datetime) -> float:
@@ -397,8 +390,8 @@ def build_signal(
         "scores": {
             "kospi": kospi_score,
             "semiconductors": semiconductor_score,
-            "gap_up_raw": gap_score,
-            "up_close_raw": up_close_score,
+            "gap_up": gap_score,
+            "up_close": up_close_score,
         },
     }
 
@@ -407,8 +400,10 @@ def build_signal(
         engine_version=ENGINE_VERSION,
         kospi_score=kospi_score,
         semiconductor_score=semiconductor_score,
-        gap_up_probability=_score_to_heuristic_probability(gap_score),
-        up_close_probability=_score_to_heuristic_probability(up_close_score),
+        # Legacy API/DB field names are preserved, but all four uncalibrated
+        # Rule Signals now expose the same direct weighted 0-100 score.
+        gap_up_probability=gap_score,
+        up_close_probability=up_close_score,
         confidence=confidence,
         data_completeness=data_completeness,
         calibrated=False,

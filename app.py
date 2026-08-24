@@ -880,9 +880,9 @@ def signal_weights() -> dict[str, object]:
         "engine_version": ENGINE_VERSION,
         "calibrated": False,
         "probability_note": (
-            "The top-level Stage 6 score fields remain heuristic 0-100 signals for backward "
-            "compatibility. Stage 9 calibrated probabilities are returned separately under "
-            "the signal calibration object when an eligible active model existed at signal time."
+            "The four top-level Stage 6 fields are direct weighted 0-100 Rule Scores. "
+            "Legacy field names are preserved for API/DB compatibility; Stage 9 calibrated "
+            "probabilities are returned separately under the signal calibration object when eligible."
         ),
         "components": {
             key: {

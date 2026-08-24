@@ -2,7 +2,7 @@
 
 > 기준 시점: 2026-08-24 14:48 KST  
 > 기준본: 이 문서와 함께 첨부되는 **최신 `market-ai` ZIP**  
-> 현재 다음 작업: **Signal v5 운영 확인**
+> 현재 다음 작업: **Signal v6 운영 확인**
 
 ---
 
@@ -16,13 +16,13 @@
 4. 현재 다음 작업이 아래임을 짧게 알려준다.
 
 ```text
-Signal v5 운영 확인
+Signal v6 운영 확인
 ```
 
 5. 답변 마지막에 반드시 아래처럼 안내하고 사용자 입력을 기다린다.
 
 ```text
-다음 요청: Signal v5 운영 확인
+다음 요청: Signal v6 운영 확인
 ```
 
 권장 응답 예:
@@ -30,9 +30,9 @@ Signal v5 운영 확인
 ```text
 인수인계 확인 완료.
 AUTO 휴장일 경계값 QA는 53/53 PASS했고, 주간 FC_R 실제 실시간 수신도 확인 완료했습니다.
-현재 다음 작업은 Signal v5 운영 확인입니다.
+현재 다음 작업은 Signal v6 운영 확인입니다.
 
-다음 요청: Signal v5 운영 확인
+다음 요청: Signal v6 운영 확인
 ```
 
 ---
@@ -289,10 +289,10 @@ MARKET_AI_AI_ENABLED=false
 
 ## 6차 — Signal Engine ✅
 
-엔진 버전:
+현재 엔진 버전:
 
 ```text
-stage6_rule_v5
+stage6_rule_v6
 ```
 
 주요 출력:
@@ -305,12 +305,12 @@ stage6_rule_v5
 - `data_completeness`
 - `calibrated`
 
-`calibrated=false`일 때 `gap_up_probability`, `up_close_probability`는 실제 통계확률이 아니라 기존 이름을 유지한 0~100 heuristic score다.
+`calibrated=false`일 때 `gap_up_probability`, `up_close_probability`는 실제 통계확률이 아니라 기존 이름을 유지한 **직접 가중 0~100 Rule Score**다.
 
-KOSPI 구성에서 KOSPI200 선물 기본 가중치:
+현재 KOSPI 구성에서 KOSPI200 선물 기본 가중치:
 
 ```text
-kospi200_futures = 0.20
+kospi200_futures = 0.65
 ```
 
 freshness와 quality가 실제 effective weight에 반영된다.
@@ -967,7 +967,7 @@ AUTO 휴장일/만기일/야간장 경계값 QA ✅ 53/53 PASS
 남음:
 
 ```text
-Signal v5 운영 확인
+Signal v6 운영 확인
 필요 시 CMEH_R 호가 교차검증
 ```
 
@@ -984,9 +984,31 @@ Signal v5 운영 확인
 5. 결과 / usage / cost 확인
 6. 성공 후 자동 분석 활성화
 
+
+## 13차 — Rule Score 출력 정합성 통일 ✅
+
+2026-08-24 운영 QA에서 `gap_up_probability`, `up_close_probability`만 direct weighted score에 `50 + (score - 50) × 0.85` 압축을 한 번 더 적용해, tooltip의 구성 가중치로 재계산한 점수와 화면/API 값이 달라지는 문제를 확인했다.
+
+`stage6_rule_v6`에서 이 legacy 압축을 제거하고 비보정 Rule Signal 4개를 모두 동일한 직접 가중 0~100 점수로 통일한다.
+
+```text
+kospi_score             = direct weighted score
+semiconductor_score     = direct weighted score
+gap_up_probability      = direct weighted score  # legacy field name 유지
+up_close_probability    = direct weighted score  # legacy field name 유지
+```
+
+운영 원칙:
+
+- `gap_up_probability`, `up_close_probability`라는 기존 API/DB 필드명은 호환성을 위해 유지한다.
+- `calibrated=false`이면 네 값 모두 통계 확률이 아니라 0~100 Rule Score다.
+- Stage 9 calibration이 실제 적용된 target만 대시보드에서 통계 보정 상승확률로 표시한다.
+- 점수 계산식 변경으로 v5 이하 기록/Calibration과 섞이지 않도록 엔진 버전을 `stage6_rule_v6`로 분리한다.
+- 기존 DB의 v5 이하 SignalRun은 이력으로 보존하며 소급 재작성하지 않는다.
+
 ---
 
-# 13. 파일/보존 관련 주의
+# 14. 파일/보존 관련 주의
 
 ## 반드시 보존
 
@@ -1027,12 +1049,12 @@ eFriendQA/
 
 ---
 
-# 14. 현재 상태 한눈에 보기
+# 15. 현재 상태 한눈에 보기
 
 ```text
-Market AI 1~12차                    ✅
+Market AI 1~13차                    ✅
 시장 데이터 / 뉴스                  ✅
-Signal Engine                       ✅
+Signal Engine                       ✅ stage6_rule_v6
 Backtest / Calibration              ✅
 투자 대시보드 Market AI 연동         ✅
 OpenAI 실제 API live QA             ⏸ 선택 기능 · 보류
@@ -1052,7 +1074,7 @@ GitHub 연동                         ⏸ 현재 불필요
 
 ---
 
-# 15. 새 채팅 최종 행동 지침
+# 16. 새 채팅 최종 행동 지침
 
 사용자가 최신 ZIP을 첨부하고:
 
@@ -1067,9 +1089,9 @@ GitHub 연동                         ⏸ 현재 불필요
 ```text
 인수인계 확인 완료.
 Bridge 2차 실통신 기준 QA는 58/58 PASS이고, AUTO 휴장일 경계값 QA도 53/53 PASS했습니다.
-주간 FC_R 실제 실시간 수신까지 확인 완료했으며 현재 다음 작업은 Signal v5 운영 확인입니다.
+주간 FC_R 실제 실시간 수신과 Signal v5 운영 QA까지 확인했고, 점수 출력 정합성 수정으로 현재 엔진은 stage6_rule_v6입니다.
 
-다음 요청: Signal v5 운영 확인
+다음 요청: Signal v6 운영 확인
 ```
 
-AUTO 휴장일 QA와 주간 FC_R 실증은 완료됐다. 다음 단계는 `Signal v5 운영 확인`으로, 실제 장중 신호의 입력·가중치·quality/freshness·DB 엔진 버전·대시보드 tooltip 정합을 확인한다.
+AUTO 휴장일 QA와 주간 FC_R 실증, Signal v5 운영 QA는 완료됐다. 다음 단계는 `Signal v6 운영 확인`으로, 네 Rule Signal이 직접 0~100 점수와 tooltip 근거값에 일치하는지, DB가 `stage6_rule_v6`로 저장되는지 확인한다.

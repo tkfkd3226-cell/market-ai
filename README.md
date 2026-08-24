@@ -16,7 +16,7 @@ Market AI 1~12차                    ✅
 시장 데이터 수집                     ✅
 뉴스 수집                           ✅
 OpenAI 뉴스 분석 코드                ✅
-Signal Engine                       ✅ stage6_rule_v5
+Signal Engine                       ✅ stage6_rule_v6
 SOX 현물 전환 / NQ 선물 기준 정리    ✅ 11차
 4개 Rule Signal 직접 입력 재정의     ✅ 12차
 Backtest                            ✅
@@ -33,7 +33,7 @@ AUTO 휴장일 경계값 QA               ✅ 53/53 PASS
 OpenAI 실제 API live QA             ⏸ 선택 기능 · 보류
 ```
 
-다음 작업은 **Signal v5 운영 확인**입니다. 실제 장중 데이터에서 4개 신호의 입력·가중치·품질·툴팁과 DB 저장 버전을 확인합니다.
+다음 작업은 **Signal v6 운영 확인**입니다. 실제 장중 데이터에서 4개 신호의 입력·가중치·품질·툴팁과 DB 저장 버전을 확인합니다.
 
 ---
 
@@ -408,7 +408,7 @@ POST /api/signal/run-once
 현재 Signal Engine:
 
 ```text
-stage6_rule_v5
+stage6_rule_v6
 ```
 
 대시보드의 4개 신호는 이름과 입력 의미가 일치하도록 분리합니다.
@@ -426,6 +426,7 @@ stage6_rule_v5
 - 뉴스, 금리, 유가 등은 이 4개 Rule Signal의 weight map에 섞지 않습니다.
 - freshness와 quality는 각 입력의 실제 유효 가중치에 계속 반영됩니다.
 - `FUTURES:SOX`의 기존 DB snapshot/history는 삭제하지 않지만 catalog와 자동수집 대상에서는 제외합니다.
+- `stage6_rule_v6`부터 비보정 상태의 4개 Rule Signal은 모두 동일한 **직접 가중 0~100 점수**를 반환합니다. 기존 `gap_up_probability`, `up_close_probability` 필드명은 API/DB 호환을 위해 유지하지만 별도의 0.85 압축 변환은 더 이상 적용하지 않습니다.
 
 세부 weight와 component 목록은 `GET /api/signal/weights`, 실제 계산 근거는 `GET /api/signal/latest?include_details=true`에서 확인합니다.
 
@@ -587,10 +588,10 @@ Bridge 2차 수정본 QA는 **58/58 PASS**, AUTO 휴장일/만기/야간장 경�
 현재 다음 요청:
 
 ```text
-Signal v5 운영 확인
+Signal v6 운영 확인
 ```
 
-즉 새 채팅에서는 최신 ZIP의 인수인계 문서를 확인한 뒤, 실제 장중 데이터에서 4개 Signal의 입력·가중치·quality/freshness·DB `stage6_rule_v5` 저장·대시보드 tooltip 정합을 점검하는 순서로 진행합니다.
+즉 새 채팅에서는 최신 ZIP의 인수인계 문서를 확인한 뒤, 실제 장중 데이터에서 4개 Signal의 직접 0~100 점수·입력·가중치·quality/freshness·DB `stage6_rule_v6` 저장·대시보드 tooltip 정합을 점검하는 순서로 진행합니다.
 
 ### 통합 로컬 실행
 
