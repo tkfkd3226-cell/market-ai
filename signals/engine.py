@@ -285,6 +285,24 @@ def _combine(
     return _clamp(weighted_sum / effective_weight, -1.0, 1.0), effective_weight
 
 
+def _effective_component_weights(
+    weights: dict[str, float],
+    directions: dict[str, float | None],
+    qualities: dict[str, float],
+) -> dict[str, dict[str, object]]:
+    result: dict[str, dict[str, object]] = {}
+    for key, configured_weight in weights.items():
+        quality = _clamp(float(qualities.get(key, 0.0)), 0.0, 1.0)
+        available = directions.get(key) is not None and quality > 0
+        result[key] = {
+            "configured_weight": round(float(configured_weight), 6),
+            "effective_weight": round(float(configured_weight) * quality, 6) if available else 0.0,
+            "quality": round(quality, 4),
+            "available": available,
+        }
+    return result
+
+
 def _directional_agreement(values: list[float]) -> float:
     if len(values) < 2:
         return 1.0
@@ -669,11 +687,22 @@ def build_signal(
         4,
     )
 
-    calibration_eligible = ["kospi_up", "semiconductor_up"]
+    calibration_eligible: list[str] = []
+    if kospi_available_weight > 0:
+        calibration_eligible.append("kospi_up")
+    if semi_available_weight > 0:
+        calibration_eligible.append("semiconductor_up")
     if gap_state.get("available"):
         calibration_eligible.append("gap_up")
     if up_close_state.get("mode") == "preopen_forecast" and up_close_state.get("available"):
         calibration_eligible.append("up_close")
+
+    effective_weights = {
+        "kospi": _effective_component_weights(KOSPI_WEIGHTS, directions, qualities),
+        "semiconductors": _effective_component_weights(SEMICONDUCTOR_WEIGHTS, directions, qualities),
+        "gap_up": _effective_component_weights(gap_weights, directions, qualities),
+        "up_close": _effective_component_weights(up_close_weights, directions, qualities),
+    }
 
     details = {
         "method": ENGINE_VERSION,
@@ -690,6 +719,22 @@ def build_signal(
             "calendar_source": session_ctx["calendar_source"],
         },
         "signal_state": {
+            "kospi": {
+                "available": kospi_available_weight > 0,
+                "note": (
+                    "KOSPI 현물·KOSPI200 선물 중 유효한 입력으로 계산합니다."
+                    if kospi_available_weight > 0
+                    else "유효한 KOSPI 현물·KOSPI200 선물 입력이 없습니다."
+                ),
+            },
+            "semiconductors": {
+                "available": semi_available_weight > 0,
+                "note": (
+                    "국내·미국 반도체 자산과 SOX 중 유효한 입력으로 계산합니다."
+                    if semi_available_weight > 0
+                    else "유효한 반도체 시장 입력이 없습니다."
+                ),
+            },
             "gap_up": gap_state,
             "up_close": up_close_state,
         },
@@ -715,6 +760,7 @@ def build_signal(
         "effective_weight": {
             key: round(value, 4) for key, value in available_weights.items()
         },
+        "effective_weights": effective_weights,
         "market_components": market_components,
         "directions": {
             key: None if value is None else round(value, 4)
