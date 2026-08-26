@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
 cd /d "%~dp0"
@@ -12,7 +12,7 @@ set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
 
 if /i "%~1"=="--ensure" (
     if exist "%TARGET_EXE%" (
-        powershell -NoProfile -ExecutionPolicy Bypass -Command "$exe=Get-Item -LiteralPath '%TARGET_EXE%'; $src=Get-ChildItem -LiteralPath '%PROJECT_DIR%' -Recurse -File | Where-Object { $_.Extension -in '.cs','.csproj','.resx','.config','.manifest' }; if(($src | Measure-Object LastWriteTimeUtc -Maximum).Maximum -le $exe.LastWriteTimeUtc){exit 0}else{exit 1}" >nul 2>nul
+        powershell -NoProfile -ExecutionPolicy Bypass -Command "$exe=Get-Item -LiteralPath '%TARGET_EXE%'; $src=Get-ChildItem -LiteralPath '%PROJECT_DIR%' -Recurse -File | Where-Object { $_.Extension -in '.cs','.csproj','.resx','.config','.manifest','.ico' }; if(($src | Measure-Object LastWriteTimeUtc -Maximum).Maximum -le $exe.LastWriteTimeUtc){exit 0}else{exit 1}" >nul 2>nul
         if not errorlevel 1 (
             if exist "%ROOT%\AxInterop.ITGExpertCtlLib.dll" if exist "%ROOT%\Interop.ITGExpertCtlLib.dll" if exist "%ROOT%\KisKospi200Bridge.exe.config" (
                 echo [OK]    KIS Bridge root runtime is up to date.

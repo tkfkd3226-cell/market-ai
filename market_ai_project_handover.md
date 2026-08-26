@@ -607,6 +607,26 @@ x86
 
 eFriend Expert와 Bridge는 관리자 권한 실행 기준으로 사용한다.
 
+Bridge 운영 UI 기준:
+
+- 기본 실행은 시스템 트레이 상주이며 메인 창은 자동으로 열지 않는다.
+- 트레이 우클릭 `View`로 상태 창을 열고 `종료`로 실제 프로세스를 종료한다.
+- 트레이 아이콘 더블클릭도 `View`와 동일하다.
+- 상태 창 최소화/닫기(X)는 종료가 아니라 트레이 숨김으로 처리한다.
+- eFriend ActiveX 초기화 보존을 위해 폼은 생성하되 최초 표시 시 투명/Taskbar 비노출 상태에서 즉시 숨기는 구조를 유지한다.
+
+통합 로컬 실행은 투자 대시보드의 `start-local-server.pyw`가 담당하며 런타임 의존 순서는 아래를 고정한다.
+
+```text
+eFriend Expert 프로세스 안정 확인
+→ 기존 Bridge/API/Dashboard 잔존 프로세스 정리
+→ KIS Bridge 실행 및 프로세스 안정 확인
+→ Market AI API health 확인
+→ Dashboard HTTP server 실행
+```
+
+eFriend 확인 실패 시 기존 `KisKospi200Bridge.exe`도 종료하고 이후 시작을 중단한다. Bridge는 API보다 먼저 뜨므로 AUTO route 첫 요청 실패는 정상적인 짧은 과도 상태이며, Bridge의 기존 주기 재시도로 API 준비 후 자동 복구한다.
+
 ## 7.2 KOSPI200 근월물 / AUTO 기준
 
 FML Viewer와 FOPH로 실제 확인한 2026-09 월물 예시는 다음과 같다.

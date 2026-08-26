@@ -37,6 +37,8 @@ namespace KisKospi200Bridge
         private Label lblTickCount;
         private Label lblMarketAi;
         private TextBox txtLog;
+        private NotifyIcon trayIcon;
+        private ContextMenuStrip trayMenu;
 
         private string activeService = "";
         private string activeCode = "";
@@ -55,6 +57,7 @@ namespace KisKospi200Bridge
         private string autoResolvedSession = "closed";
         private bool autoRouteResolved;
         private DateTime lastForwardErrorLogUtc = DateTime.MinValue;
+        private bool exitRequested;
 
         public MainForm()
         {
@@ -91,6 +94,8 @@ namespace KisKospi200Bridge
 
             Text = "KIS eFriend KOSPI200 Futures Bridge - Stage 2";
             StartPosition = FormStartPosition.CenterScreen;
+            ShowInTaskbar = false;
+            Opacity = 0;
             ClientSize = new Size(760, 520);
             MinimumSize = new Size(780, 560);
             Font = new Font("Malgun Gothic", 9F, FontStyle.Regular, GraphicsUnit.Point, 129);
@@ -186,7 +191,28 @@ namespace KisKospi200Bridge
 
             Controls.Add(title);
             Controls.Add(note);
+
+            trayMenu = new ContextMenuStrip();
+            var trayViewMenuItem = new ToolStripMenuItem("View");
+            var trayExitMenuItem = new ToolStripMenuItem("종료");
+            trayViewMenuItem.Click += TrayViewMenuItem_Click;
+            trayExitMenuItem.Click += TrayExitMenuItem_Click;
+            trayMenu.Items.AddRange(new ToolStripItem[] { trayViewMenuItem, new ToolStripSeparator(), trayExitMenuItem });
+
+            var appIcon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
+            Icon = appIcon;
+
+            trayIcon = new NotifyIcon
+            {
+                Icon = appIcon,
+                Text = "KIS KOSPI200 Bridge",
+                ContextMenuStrip = trayMenu,
+                Visible = true
+            };
+            trayIcon.DoubleClick += TrayIcon_DoubleClick;
+
             Shown += MainForm_Shown;
+            Resize += MainForm_Resize;
             FormClosing += MainForm_FormClosing;
 
             ((ISupportInitialize)axTrade).EndInit();
@@ -218,10 +244,61 @@ namespace KisKospi200Bridge
 
         private async void MainForm_Shown(object sender, EventArgs e)
         {
+            // Let WinForms/ActiveX finish creating the control, but keep the bridge
+            // out of the taskbar and invisible on normal startup.
+            HideToTray();
+            Opacity = 1;
+
             await Task.Delay(800);
             if (IsDisposed || Disposing || monitoringRequested || !btnStart.Enabled) return;
             AppendLog("AUTO START - 실시간 수신을 자동으로 시작합니다.");
             StartMonitoring(false);
+        }
+
+
+        private void TrayViewMenuItem_Click(object sender, EventArgs e)
+        {
+            ShowFromTray();
+        }
+
+        private void TrayExitMenuItem_Click(object sender, EventArgs e)
+        {
+            exitRequested = true;
+            if (trayIcon != null)
+                trayIcon.Visible = false;
+            Close();
+        }
+
+        private void TrayIcon_DoubleClick(object sender, EventArgs e)
+        {
+            ShowFromTray();
+        }
+
+        private void MainForm_Resize(object sender, EventArgs e)
+        {
+            if (WindowState == FormWindowState.Minimized)
+                HideToTray();
+        }
+
+        private void ShowFromTray()
+        {
+            if (IsDisposed || Disposing) return;
+
+            if (WindowState == FormWindowState.Minimized)
+                WindowState = FormWindowState.Normal;
+
+            ShowInTaskbar = true;
+            if (!Visible)
+                Show();
+            Activate();
+            BringToFront();
+        }
+
+        private void HideToTray()
+        {
+            if (IsDisposed || Disposing) return;
+            ShowInTaskbar = false;
+            Hide();
         }
 
         private void BtnStart_Click(object sender, EventArgs e)
@@ -713,10 +790,32 @@ namespace KisKospi200Bridge
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            // The title-bar close button behaves like a tray app: hide only.
+            // Actual process termination is available from tray menu > 종료.
+            if (e.CloseReason == CloseReason.UserClosing && !exitRequested)
+            {
+                e.Cancel = true;
+                HideToTray();
+                return;
+            }
+
             monitoringRequested = false;
             sessionTimer.Stop();
             try { axTrade.UnRequestAllRealData(); } catch { }
             httpClient.Dispose();
+
+            if (trayIcon != null)
+            {
+                trayIcon.Visible = false;
+                trayIcon.Dispose();
+                trayIcon = null;
+            }
+
+            if (trayMenu != null)
+            {
+                trayMenu.Dispose();
+                trayMenu = null;
+            }
         }
 
         private void AppendLog(string text)

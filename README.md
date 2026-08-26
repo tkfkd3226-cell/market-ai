@@ -107,7 +107,7 @@ OpenAI가 비활성화되어 있거나 API Key가 없으면 오류로 취급하�
 
 ## 3. Market AI 실행
 
-투자성과 대시보드와 함께 사용하는 일반 실행은 투자성과 대시보드 프로젝트의 `start-local-server.bat` 하나를 권장합니다. 이 배치 파일이 대시보드 HTTP 서버(8000), Market AI API(8001), KIS KOSPI200 Bridge를 함께 시작합니다.
+투자성과 대시보드와 함께 사용하는 일반 실행은 투자성과 대시보드 프로젝트의 `start-local-server.pyw` Python 트레이 런처를 권장합니다. 런처는 **eFriend Expert → KIS KOSPI200 Bridge → Market AI API → Dashboard** 순서로 실행하며, Bridge 프로세스가 확인되기 전에는 API와 Dashboard를 시작하지 않습니다. `start-local-server.bat`은 Python 런처를 호출하는 호환용 shim만 유지합니다.
 
 Market AI API만 단독으로 확인할 필요가 있을 때는 별도 BAT 없이 `market-ai` 폴더에서 직접 실행합니다.
 
@@ -149,7 +149,20 @@ GET /api/signal/status
 market-ai\KisKospi200Bridge.exe
 ```
 
-`KisKospi200Bridge\bin\x86\Debug`는 개발 빌드 산출물 경로이므로 운영 실행 경로로 사용하지 않습니다. `build-kis-bridge-release.bat`가 최신 소스를 Release/x86으로 빌드하고 EXE, config, eFriend interop DLL을 `market-ai` 루트로 복사합니다. 투자성과 대시보드의 `start-local-server.bat`은 루트 실행파일이 없거나 소스보다 오래된 경우 이 빌드를 자동 시도합니다.
+`KisKospi200Bridge\bin\x86\Debug`는 개발 빌드 산출물 경로이므로 운영 실행 경로로 사용하지 않습니다. `build-kis-bridge-release.bat`가 최신 소스를 Release/x86으로 빌드하고 EXE, config, eFriend interop DLL을 `market-ai` 루트로 복사합니다. 투자성과 대시보드의 `start-local-server.pyw`는 기존 Bridge를 정리한 뒤 루트 실행파일이 없거나 소스보다 오래된 경우 이 빌드를 숨김 subprocess로 자동 시도합니다.
+
+## 시스템 트레이 동작
+
+Bridge는 일반 실행 시 메인 창을 띄우지 않고 시스템 트레이에서 시작합니다. eFriend ActiveX 초기화를 위해 WinForms 창 자체는 생성하되, 최초 표시 단계에서 즉시 숨겨 작업표시줄에는 노출하지 않습니다.
+
+- 트레이 아이콘 우클릭 → `View`: Bridge 상태 창 표시
+- 트레이 아이콘 우클릭 → `종료`: 실시간 구독을 정리하고 Bridge 프로세스 종료
+- 트레이 아이콘 더블클릭: `View`와 동일
+- 상태 창의 최소화 또는 닫기(X): 프로세스를 종료하지 않고 다시 트레이로 숨김
+
+따라서 운영 중 Bridge 종료는 창의 X가 아니라 트레이 메뉴의 `종료`를 기준으로 합니다.
+
+통합 Python 런처에서는 Bridge를 Market AI API보다 먼저 실행합니다. Bridge의 `AUTO` route는 API의 `/api/bridge/kis-efriend/route-code`를 사용하므로 최초 수 초 동안 `연결 오류/시장 정책 확인 중`이 표시될 수 있지만, 기존 5초 재시도 루프가 API 준비 후 자동으로 route를 회복하므로 별도 재실행이 필요하지 않습니다.
 
 ## 사전 조건
 
@@ -602,4 +615,4 @@ Signal v7 운영 확인
 
 ### 통합 로컬 실행
 
-평소에는 `market-ai` 폴더에서 별도 BAT를 실행하지 않습니다. 형제 폴더인 투자 대시보드의 `start-local-server.bat` 하나가 Dashboard(:8000), Market AI API(:8001), KIS KOSPI200 Bridge를 함께 실행합니다. 최초 실행에서 Market AI 핵심 Python 패키지가 없으면 자동으로 `requirements.txt`를 설치합니다. OpenAI 기능은 선택 사항이며 기본 `requirements.txt`에는 포함되지 않습니다. 나중에 OpenAI 기능을 사용할 때만 `pip install -r requirements-openai.txt`를 실행합니다.
+평소에는 `market-ai` 폴더에서 별도 BAT를 실행하지 않습니다. 형제 폴더인 투자 대시보드의 `start-local-server.pyw`가 시스템 트레이에서 로컬 스위트를 관리합니다. 런타임 순서는 `eFriend Expert → KIS Bridge → Market AI API(:8001) → Dashboard(:8000)`이며, eFriend 확인 실패 시 잔존 Bridge까지 종료하고 시작을 중단합니다. 최초 실행에서 Market AI 핵심 Python 패키지가 없으면 자동으로 `requirements.txt`를 설치합니다. OpenAI 기능은 선택 사항이며 기본 `requirements.txt`에는 포함되지 않습니다. 나중에 OpenAI 기능을 사용할 때만 `pip install -r requirements-openai.txt`를 실행합니다.
