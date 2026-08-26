@@ -17,6 +17,8 @@ namespace KisKospi200Bridge
         private const int ForwardIntervalSeconds = 5;
         private const int HeartbeatIntervalSeconds = 10;
         private const int RouteResolveIntervalSeconds = 5;
+        // Private message used by Investment Local Suite for a graceful tray-aware shutdown.
+        private const int LocalSuiteExitMessage = 0x8200;
 
         private readonly HttpClient httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
         private readonly System.Windows.Forms.Timer sessionTimer = new System.Windows.Forms.Timer();
@@ -263,10 +265,30 @@ namespace KisKospi200Bridge
 
         private void TrayExitMenuItem_Click(object sender, EventArgs e)
         {
+            RequestApplicationExit();
+        }
+
+        private void RequestApplicationExit()
+        {
+            if (IsDisposed || Disposing) return;
             exitRequested = true;
             if (trayIcon != null)
                 trayIcon.Visible = false;
             Close();
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == LocalSuiteExitMessage)
+            {
+                // Use the same cleanup path as tray > 종료 so NotifyIcon is
+                // removed before the process exits and Explorer gets no ghost icon.
+                if (IsHandleCreated && !IsDisposed && !Disposing)
+                    BeginInvoke(new Action(RequestApplicationExit));
+                m.Result = IntPtr.Zero;
+                return;
+            }
+            base.WndProc(ref m);
         }
 
         private void TrayIcon_DoubleClick(object sender, EventArgs e)

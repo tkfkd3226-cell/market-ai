@@ -424,7 +424,7 @@ KisKospi200Bridge/MainForm.cs
 2026-08-22 최신 기준.
 
 - 대시보드와 Signal Engine의 SOX 기준은 `INDEX:SOX` (`^SOX`) 현물지수다.
-- 기존 `FUTURES:SOX` (`SOX=F`)는 저유동성 문제 때문에 Signal 입력에서 제외하고 yfinance 자동 수집 대상에서도 제거한다. 기존 DB snapshot/history는 호환을 위해 삭제하지 않는다.
+- `FUTURES:SOX` (`SOX=F`)는 저유동성 문제 때문에 Signal 입력에서는 계속 제외하되, 대시보드의 정규장 외 시장 metric 표시용으로 yfinance 자동 수집한다. Signal Engine은 `INDEX:SOX`만 사용한다.
 - Nasdaq-100 선물 canonical symbol은 `FUTURES:NQ`이며 Yahoo provider symbol은 `NQ=F`다.
 - 엔진 버전은 `stage6_rule_v4`로 올려 기존 v3 calibration과 분리한다.
 - 핵심 시장 입력 우선순위는 모든 주요 신호에서 `KOSPI200 선물 > SOX 현물지수 > Nasdaq-100 선물`을 유지한다.
@@ -491,7 +491,7 @@ KOSPI
 - 갭상은 국내장 개장 전 선행성이 높은 K200 > SOX > NQ 순서를 중심으로 사용한다.
 - 상승마감은 더 이상 `코스피 점수 × 55% + 반도체 점수 × 45%` 파생식으로 만들지 않고 직접 weight map을 사용한다.
 - 뉴스는 별도 수집/AI 분석 기능으로 유지하되 4개 Rule Signal weight에는 사용하지 않는다.
-- SOX는 `INDEX:SOX (^SOX)` 현물지수만 사용하고 `FUTURES:SOX (SOX=F)`는 catalog/자동수집에서 제외한다. 기존 DB 과거 데이터는 삭제하지 않는다.
+- Signal Engine의 SOX 기준은 `INDEX:SOX (^SOX)` 현물지수만 유지한다. `FUTURES:SOX (SOX=F)`는 시장 표시 전용으로 catalog/자동수집에 포함하며 Signal 가중치에는 사용하지 않는다.
 - freshness/quality 기반 유효가중치와 minimum data weight 정책은 유지한다.
 - `/api/signal/weights`는 `up_close` weight까지 반환한다.
 - `/api/signal/latest?include_details=true`의 `weights`, `market_components`, `qualities`가 대시보드 상세 tooltip의 단일 근거다.

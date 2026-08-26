@@ -17,6 +17,7 @@ YAHOO_MAPPINGS = (
     YahooMapping("NASDAQ:NVDA", "NVDA", "America/New_York"),
     YahooMapping("NASDAQ:MU", "MU", "America/New_York"),
     YahooMapping("INDEX:SOX", "^SOX", "America/New_York"),
+    YahooMapping("FUTURES:SOX", "SOX=F", "America/Chicago"),
     YahooMapping("INDEX:KOSPI", "^KS11", "Asia/Seoul"),
     YahooMapping("FUTURES:NQ", "NQ=F", "America/Chicago"),
     YahooMapping(

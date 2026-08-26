@@ -30,6 +30,11 @@ MARKET_INSTRUMENTS = (
         "group": "market_index",
     },
     {
+        "symbol": "FUTURES:SOX",
+        "name": "E-mini PHLX Semiconductor Sector Futures",
+        "group": "futures",
+    },
+    {
         "symbol": "INDEX:KOSPI",
         "name": "KOSPI Composite Index",
         "group": "market_index",

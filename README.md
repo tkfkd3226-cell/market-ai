@@ -438,11 +438,11 @@ stage6_rule_v7
             15:30 이후: KOSPI 종가 snapshot이 확정되면 실제 상승/하락/보합 결과로 종료
 ```
 
-- SOX는 저유동성 선물(`SOX=F`)이 아니라 **PHLX 반도체 현물지수** `INDEX:SOX` (`^SOX`)를 사용합니다.
+- Rule Signal의 SOX 입력은 저유동성 선물(`SOX=F`)이 아니라 **PHLX 반도체 현물지수** `INDEX:SOX` (`^SOX`)를 계속 사용합니다.
+- 대시보드 시장 metric용으로 `FUTURES:SOX` (`SOX=F`)를 별도 수집하며, 미국 정규장 외에는 `SOX-F`, 정규장 중에는 `SOX`로 표시합니다. 선물은 Signal weight에는 사용하지 않습니다.
 - Nasdaq-100 선물 canonical symbol은 `FUTURES:NQ`, Yahoo provider symbol은 `NQ=F`입니다.
 - 뉴스, 금리, 유가 등은 이 4개 Rule Signal의 weight map에 섞지 않습니다.
 - freshness와 quality는 각 입력의 실제 유효 가중치에 계속 반영됩니다.
-- `FUTURES:SOX`의 기존 DB snapshot/history는 삭제하지 않지만 catalog와 자동수집 대상에서는 제외합니다.
 - `stage6_rule_v7`은 v6의 직접 가중 0~100 원칙을 유지하면서 갭상/상승마감에 KRX 현금장 시간대 의미를 추가합니다. 기존 `gap_up_probability`, `up_close_probability` 필드명은 API/DB 호환을 위해 유지합니다.
 - 장중 갭상은 새로 계산하지 않고 09:00 직전 마지막 장전 예측을 고정합니다. 장전 체크포인트가 없으면 유효 신호 없음으로 표시합니다.
 - 상승마감은 장전/장중 weight map을 분리하고, 15:30 이후 당일 KOSPI 종가 snapshot이 확인되면 예측 점수 대신 실제 마감 결과로 전환합니다.
