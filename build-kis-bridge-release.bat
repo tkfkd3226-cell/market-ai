@@ -48,7 +48,7 @@ if not defined MSBUILD_EXE (
     echo [ERROR] MSBuild was not found.
     echo [ERROR] Checked PATH, vswhere, and Visual Studio 2022 default install paths.
     echo [ACTION] Install Visual Studio 2022 or Build Tools 2022 with '.NET desktop development'.
-    echo [ACTION] Then run start-local-server.bat again and attach start-local-server.log if it still fails.
+    echo [ACTION] Then run build-kis-bridge-release.bat again and review the MSBuild output if it still fails.
     exit /b 1
 )
 

@@ -1,8 +1,8 @@
 # Market AI 프로젝트 인수인계
 
-> 기준 시점: 2026-08-24 14:48 KST  
+> 기준 시점: 2026-08-27 11:00 KST  
 > 기준본: 이 문서와 함께 첨부되는 **최신 `market-ai` ZIP**  
-> 현재 다음 작업: **Signal v7 운영 확인**
+> 현재 상태: **최종 통합 QA 완료 · 필수 후속 작업 없음**
 
 ---
 
@@ -13,26 +13,15 @@
 1. 첨부된 최신 ZIP 내부의 이 문서(`market_ai_project_handover.md`)와 `README.md`를 먼저 읽는다.
 2. 과거 작업을 다시 설명해 달라고 사용자에게 요구하지 않는다.
 3. **QA를 자동으로 시작하지 않는다.**
-4. 현재 다음 작업이 아래임을 짧게 알려준다.
-
-```text
-Signal v7 운영 확인
-```
-
-5. 답변 마지막에 반드시 아래처럼 안내하고 사용자 입력을 기다린다.
-
-```text
-다음 요청: Signal v7 운영 확인
-```
+4. 현재 기준이 최종 통합 QA 완료 상태임을 짧게 알려준다.
+5. 필수 후속 작업을 임의로 만들지 말고 사용자의 새 요청을 기다린다.
 
 권장 응답 예:
 
 ```text
 인수인계 확인 완료.
-AUTO 휴장일 경계값 QA는 53/53 PASS했고, 주간 FC_R 실제 실시간 수신도 확인 완료했습니다.
-현재 다음 작업은 Signal v7 운영 확인입니다.
-
-다음 요청: Signal v7 운영 확인
+Bridge/AUTO 세션 QA와 Signal v7 phase·checkpoint·대시보드 연동 통합 QA까지 완료된 기준본입니다.
+현재 필수 후속 작업은 없습니다.
 ```
 
 ---
@@ -168,7 +157,7 @@ Signal Engine
 
 ---
 
-# 5. Market AI 1~12차 완료 상태
+# 5. Market AI 구현 차수 완료 상태
 
 ## 1차 — FastAPI + SQLite ✅
 
@@ -292,7 +281,7 @@ MARKET_AI_AI_ENABLED=false
 현재 엔진 버전:
 
 ```text
-stage6_rule_v6
+stage6_rule_v7
 ```
 
 주요 출력:
@@ -327,14 +316,13 @@ js/dashboard-market-ai.js
 
 대시보드 연동 원칙:
 
-- 가능하면 `dashboard-app.js`, `dashboard-ui.js`를 건드리지 않는다.
-- AI Market Signal은 Desktop Hero 우측, Tablet Hero 하단에 compact 보조 카드로 표시하고 Mobile/실제 터치폰 가로에서는 숨긴다.
-- GitHub Pages 등 비로컬 환경에서는 Market AI 영역을 완전히 숨기고 localhost 요청도 보내지 않는다.
-- 로컬 서버 오류 시 간단히 `서버 연결 안 됨`
-- 오래된 Signal은 `신호 지연`
-- stale 기준: 5분
-
-현재 Market AI Bridge 2차 QA에서는 투자 대시보드 수정이 필요하지 않다.
+- `dashboard-market-ai.js`는 main feature graph와 분리된 standalone entry이며 공통 `dashboard-modal.js`의 dialog lifecycle만 공유한다.
+- AI Market Signal은 Desktop/Tablet Hero 우측 compact panel로 표시하고, Mobile/실제 터치폰 가로에서는 Hero의 `AI Signal` 버튼으로 같은 panel DOM을 native dialog에 이동·재사용한다.
+- GitHub Pages 등 비로컬 기본 모드에서는 Market AI 영역을 숨기고 localhost 요청도 보내지 않으며, `?market-ai-preview=1/2/3`은 내장 예시 데이터만 사용한다.
+- 시장 Snapshot, Signal, KIS Bridge status는 endpoint별로 실패를 격리한다. Signal 404/오류/timeout/JSON 오류/stale 때문에 정상 Snapshot을 지우지 않는다.
+- checkpoint `basis`는 기존 `weight`를 유지하면서 `configured_weight`, `effective_weight`, `quality`를 함께 제공하고 frontend tooltip은 `effective_weight`를 우선한다.
+- 시장 SOX metric은 미국 현물 정규장 중에는 `INDEX:SOX`를 `SOX`로, 정규장 밖에는 `FUTURES:SOX`를 `SOX-F`로 표시한다. Rule Signal 입력은 계속 `INDEX:SOX`만 사용한다.
+- 오래된 Signal은 `신호 지연`, stale 기준은 5분이다.
 
 ## 8차 — Prediction Outcome / Backtest ✅
 
@@ -967,7 +955,7 @@ AUTO 근월물/세션 라우팅 구현 후의 검증 순서는 **정적·경계�
 
 ---
 
-# 12. 남은 운영 / QA 작업
+# 12. 선택 운영 / 후속 확인
 
 ## KIS
 
@@ -984,10 +972,9 @@ AUTO 휴장일/만기일/야간장 경계값 QA ✅ 53/53 PASS
 주간 FC_R 실제 실시간 1회 확인 ✅
 ```
 
-남음:
+선택 항목:
 
 ```text
-Signal v7 운영 확인
 필요 시 CMEH_R 호가 교차검증
 ```
 
@@ -1052,7 +1039,7 @@ up_close_probability    = direct weighted score  # legacy field name 유지
 - Stage 9 Calibration은 `calibration_eligible_targets`를 따라 적용하며, 장중/마감확정 `up_close`에는 장전 학습 모델을 적용하지 않는다.
 - 계산 의미가 달라졌으므로 엔진 버전은 `stage6_rule_v7`로 분리하며 v6 이하 기록은 이력으로 보존한다.
 
-다음 작업: **Signal v7 운영 확인**
+Signal v7 phase/checkpoint 및 대시보드 연동 통합 QA까지 완료했다. 필수 후속 작업은 없다.
 
 ---
 
@@ -1097,10 +1084,10 @@ eFriendQA/
 
 ---
 
-# 15. 현재 상태 한눈에 보기
+# 16. 현재 상태 한눈에 보기
 
 ```text
-Market AI 1~13차                    ✅
+Market AI 1~14차                    ✅
 시장 데이터 / 뉴스                  ✅
 Signal Engine                       ✅ stage6_rule_v7
 Backtest / Calibration              ✅
@@ -1117,12 +1104,15 @@ Bridge 2차 수정본 재QA               ✅ 58/58 PASS
 KRX 세션/휴장 route                 ✅ 구현
 AUTO 휴장일 경계값 QA               ✅ 53/53 PASS
 주간 FC_R live 확인                 ✅ 실증
+Signal v7 phase/checkpoint QA        ✅
+Dashboard Front↔Backend 통합 QA     ✅
+SOX ↔ SOX-F 시장 표시 전환           ✅
 GitHub 연동                         ⏸ 현재 불필요
 ```
 
 ---
 
-# 16. 새 채팅 최종 행동 지침
+# 17. 새 채팅 최종 행동 지침
 
 사용자가 최신 ZIP을 첨부하고:
 
@@ -1136,10 +1126,8 @@ GitHub 연동                         ⏸ 현재 불필요
 
 ```text
 인수인계 확인 완료.
-Bridge 2차 실통신 기준 QA는 58/58 PASS이고, AUTO 휴장일 경계값 QA도 53/53 PASS했습니다.
-주간 FC_R 실제 실시간 수신과 Signal v5 운영 QA까지 확인했고, 점수 출력 정합성 수정으로 현재 엔진은 stage6_rule_v7입니다.
-
-다음 요청: Signal v7 운영 확인
+Bridge/AUTO 세션 QA와 Signal v7 phase·checkpoint·대시보드 Front↔Backend 통합 QA까지 완료된 기준본입니다.
+현재 필수 후속 작업은 없습니다.
 ```
 
-AUTO 휴장일 QA와 주간 FC_R 실증, Signal v5 운영 QA는 완료됐다. 다음 단계는 `Signal v7 운영 확인`으로, 네 Rule Signal이 직접 0~100 점수와 tooltip 근거값에 일치하는지, DB가 `stage6_rule_v7`로 저장되는지 확인한다.
+새 채팅에서는 오래된 차수의 미완료 작업을 다시 제안하지 말고 최신 ZIP의 실제 코드와 이 문서를 기준으로 사용자의 새 요청부터 진행한다.

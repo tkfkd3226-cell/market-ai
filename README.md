@@ -2,7 +2,7 @@
 
 로컬 PC에서 시장 데이터, 뉴스, 실제 KOSPI200 선물, Signal Engine, Backtest, Calibration을 통합해 **AI Market Signal**을 생성하는 프로젝트입니다.
 
-현재 기준은 **Market AI 1~12차 + KIS eFriend Expert KOSPI200 Futures Bridge 2차**까지 구현된 상태입니다.
+현재 기준은 **Market AI 1~14차 + KIS eFriend Expert KOSPI200 Futures Bridge 2차 + 투자 대시보드 Front↔Backend 통합 QA**까지 완료된 상태입니다.
 
 > 자동 주문 시스템이 아닙니다.  
 > 주문 API, 계좌번호, 계좌 비밀번호를 사용하지 않습니다.
@@ -12,7 +12,7 @@
 ## 현재 상태
 
 ```text
-Market AI 1~12차                    ✅
+Market AI 1~14차                    ✅
 시장 데이터 수집                     ✅
 뉴스 수집                           ✅
 OpenAI 뉴스 분석 코드                ✅
@@ -30,10 +30,13 @@ Bridge 2차 수정본 재QA               ✅ 58/58 PASS
 KOSPI200 근월물 자동 rollover        ✅ 구현
 AUTO 휴장일 경계값 QA               ✅ 53/53 PASS
 주간 FC_R 실시간 확인                ✅ 실증
+Signal v7 phase / checkpoint QA     ✅
+Dashboard endpoint 실패 격리         ✅
+SOX ↔ SOX-F 시장 표시 전환           ✅
 OpenAI 실제 API live QA             ⏸ 선택 기능 · 보류
 ```
 
-다음 작업은 **Signal v7 운영 확인**입니다. 갭상/상승마감의 장전·장중·장마감 시간대 전환과 대시보드 tooltip 상태를 실제 운영 데이터로 확인합니다.
+현재 필수 후속 작업은 없습니다. Signal v7 시간대 전환, checkpoint 유효가중치, 대시보드 endpoint 실패 격리까지 통합 QA를 완료했습니다. OpenAI live API QA와 CMEH_R 호가 교차검증은 필요할 때만 진행하는 선택 항목입니다.
 
 ---
 
@@ -78,7 +81,7 @@ market-ai/
 
 ## 1. Python 패키지
 
-투자성과 대시보드의 `start-local-server.bat`을 사용하는 일반 실행에서는 필수 패키지가 없으면 최초 실행 때 `requirements.txt`를 자동 설치합니다. 수동 설치가 필요할 때만 아래 명령을 사용합니다.
+투자성과 대시보드의 `start-local-server.pyw`를 사용하는 일반 실행에서는 필수 패키지가 없으면 최초 실행 때 `requirements.txt`를 자동 설치합니다. 수동 설치가 필요할 때만 아래 명령을 사용합니다.
 
 ```bat
 python -m pip install -r requirements.txt
@@ -107,7 +110,7 @@ OpenAI가 비활성화되어 있거나 API Key가 없으면 오류로 취급하�
 
 ## 3. Market AI 실행
 
-투자성과 대시보드와 함께 사용하는 일반 실행은 투자성과 대시보드 프로젝트의 `start-local-server.pyw` Python 트레이 런처를 권장합니다. 런처는 **eFriend Expert → KIS KOSPI200 Bridge → Market AI API → Dashboard** 순서로 실행하며, Bridge 프로세스가 확인되기 전에는 API와 Dashboard를 시작하지 않습니다. `start-local-server.bat`은 Python 런처를 호출하는 호환용 shim만 유지합니다.
+투자성과 대시보드와 함께 사용하는 일반 실행은 투자성과 대시보드 프로젝트의 `start-local-server.pyw` Python 트레이 런처를 사용합니다. 런처는 **eFriend Expert → KIS KOSPI200 Bridge → Market AI API → Dashboard** 순서로 실행하며, Bridge 프로세스가 확인되기 전에는 API와 Dashboard를 시작하지 않습니다.
 
 Market AI API만 단독으로 확인할 필요가 있을 때는 별도 BAT 없이 `market-ai` 폴더에서 직접 실행합니다.
 
@@ -149,7 +152,7 @@ GET /api/signal/status
 market-ai\KisKospi200Bridge.exe
 ```
 
-`KisKospi200Bridge\bin\x86\Debug`는 개발 빌드 산출물 경로이므로 운영 실행 경로로 사용하지 않습니다. `build-kis-bridge-release.bat`가 최신 소스를 Release/x86으로 빌드하고 EXE, config, eFriend interop DLL을 `market-ai` 루트로 복사합니다. 투자성과 대시보드의 `start-local-server.pyw`는 기존 Bridge를 정리한 뒤 루트 실행파일이 없거나 소스보다 오래된 경우 이 빌드를 숨김 subprocess로 자동 시도합니다.
+`KisKospi200Bridge\bin\x86\Debug`는 개발 빌드 산출물 경로이므로 운영 실행 경로로 사용하지 않습니다. `build-kis-bridge-release.bat`가 최신 소스를 Release/x86으로 빌드하고 EXE, config, eFriend interop DLL을 `market-ai` 루트로 복사합니다. `start-local-server.pyw`는 사전 빌드된 루트 실행파일을 사용하며 기동 중 자동 재빌드하지 않습니다. Bridge 소스를 변경했거나 새 작업환경에서 루트 runtime이 없다면 먼저 `build-kis-bridge-release.bat`을 수동 실행합니다.
 
 ## 시스템 트레이 동작
 
@@ -603,16 +606,10 @@ market_ai_project_handover.md
 
 라고 입력하면, 먼저 인수인계 문서를 읽고 **작업을 자동 시작하지 않은 상태에서** 다음 작업을 안내해야 합니다.
 
-Bridge 2차 수정본 QA는 **58/58 PASS**, AUTO 휴장일/만기/야간장 경계값 QA는 **53/53 PASS**했으며, 주간 `FC_R` 실제 실시간 수신도 확인 완료했습니다.
+Bridge 2차 수정본 QA는 **58/58 PASS**, AUTO 휴장일/만기/야간장 경계값 QA는 **53/53 PASS**했고, 주간 `FC_R` 실증과 Signal v7 장전·장중·장마감/휴장 phase QA, checkpoint 유효가중치, 대시보드 endpoint 실패 격리까지 확인했습니다.
 
-현재 다음 요청:
+현재 필수 후속 작업은 없습니다. 새 채팅에서는 최신 ZIP과 인수인계 문서를 Source of Truth로 확인한 뒤 사용자의 새 요청부터 진행합니다. OpenAI live API QA와 CMEH_R 교차검증은 선택 항목입니다.
 
-```text
-Signal v7 운영 확인
-```
-
-즉 새 채팅에서는 최신 ZIP의 인수인계 문서를 확인한 뒤, 실제 장중 데이터에서 4개 Signal의 직접 0~100 점수·입력·가중치·quality/freshness·DB `stage6_rule_v7` 저장·시간대 상태·대시보드 tooltip 정합을 점검하는 순서로 진행합니다.
-
-### 통합 로컬 실행
+## 통합 로컬 실행
 
 평소에는 `market-ai` 폴더에서 별도 BAT를 실행하지 않습니다. 형제 폴더인 투자 대시보드의 `start-local-server.pyw`가 시스템 트레이에서 로컬 스위트를 관리합니다. 런타임 순서는 `eFriend Expert → KIS Bridge → Market AI API(:8001) → Dashboard(:8000)`이며, eFriend 확인 실패 시 잔존 Bridge까지 종료하고 시작을 중단합니다. 최초 실행에서 Market AI 핵심 Python 패키지가 없으면 자동으로 `requirements.txt`를 설치합니다. OpenAI 기능은 선택 사항이며 기본 `requirements.txt`에는 포함되지 않습니다. 나중에 OpenAI 기능을 사용할 때만 `pip install -r requirements-openai.txt`를 실행합니다.
