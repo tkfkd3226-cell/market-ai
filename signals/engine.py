@@ -388,6 +388,10 @@ def _decode_row_details(row: SignalRun) -> dict[str, object]:
 def _checkpoint_basis(details: dict[str, object], target: str) -> list[dict[str, object]]:
     weights_root = details.get("weights")
     weights = weights_root.get(target, {}) if isinstance(weights_root, dict) else {}
+    effective_root = details.get("effective_weights")
+    effective_weights = (
+        effective_root.get(target, {}) if isinstance(effective_root, dict) else {}
+    )
     qualities = details.get("qualities") if isinstance(details.get("qualities"), dict) else {}
     components = (
         details.get("market_components")
@@ -407,13 +411,28 @@ def _checkpoint_basis(details: dict[str, object], target: str) -> list[dict[str,
             continue
         quality_raw = qualities.get(key, record.get("quality"))
         try:
-            quality = float(quality_raw)
+            quality = _clamp(float(quality_raw), 0.0, 1.0)
         except (TypeError, ValueError):
             quality = None
+
+        effective_record = (
+            effective_weights.get(key, {})
+            if isinstance(effective_weights, dict)
+            and isinstance(effective_weights.get(key), dict)
+            else {}
+        )
+        try:
+            effective_weight = float(effective_record.get("effective_weight"))
+        except (TypeError, ValueError):
+            effective_weight = weight * quality if quality is not None else weight
+
         result.append({
             "key": key,
+            # Legacy `weight` is kept for old dashboard adapters/checkpoints.
             "weight": round(weight, 6),
-            "quality": None if quality is None else round(_clamp(quality, 0.0, 1.0), 4),
+            "configured_weight": round(weight, 6),
+            "effective_weight": round(effective_weight, 6),
+            "quality": None if quality is None else round(quality, 4),
         })
     return result
 
