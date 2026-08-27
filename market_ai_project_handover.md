@@ -321,7 +321,7 @@ js/dashboard-market-ai.js
 - GitHub Pages 등 비로컬 기본 모드에서는 Market AI 영역을 숨기고 localhost 요청도 보내지 않으며, `?market-ai-preview=1/2/3`은 내장 예시 데이터만 사용한다.
 - 시장 Snapshot, Signal, KIS Bridge status는 endpoint별로 실패를 격리한다. Signal 404/오류/timeout/JSON 오류/stale 때문에 정상 Snapshot을 지우지 않는다.
 - checkpoint `basis`는 기존 `weight`를 유지하면서 `configured_weight`, `effective_weight`, `quality`를 함께 제공하고 frontend tooltip은 `effective_weight`를 우선한다.
-- 시장 SOX metric은 미국 현물 정규장 중에는 `INDEX:SOX`를 `SOX`로, 정규장 밖에는 `FUTURES:SOX`를 `SOX-F`로 표시한다. Rule Signal 입력은 계속 `INDEX:SOX`만 사용한다.
+- 시장 SOX metric은 미국 현물 정규장 중 fresh한 `INDEX:SOX`를 `SOX`로 우선 표시하고, 현물 값이 stale/missing이면 `FUTURES:SOX`로 fallback한다. 정규장 밖에는 `FUTURES:SOX`를 `SOX-F`로 표시한다. 선택된 SOX/SOX-F source는 provider `observed_at` 기준 5분 freshness를 공통 적용하며 stale이면 마지막 가격을 현재값처럼 유지하지 않고 unavailable로 표시한다. 이 표시/freshness 정책과 Rule Signal 산식은 분리하며 Signal 입력은 계속 `INDEX:SOX`만 사용한다.
 - 오래된 Signal은 `신호 지연`, stale 기준은 5분이다.
 
 ## 8차 — Prediction Outcome / Backtest ✅

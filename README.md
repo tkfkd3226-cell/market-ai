@@ -442,7 +442,7 @@ stage6_rule_v7
 ```
 
 - Rule Signal의 SOX 입력은 저유동성 선물(`SOX=F`)이 아니라 **PHLX 반도체 현물지수** `INDEX:SOX` (`^SOX`)를 계속 사용합니다.
-- 대시보드 시장 metric용으로 `FUTURES:SOX` (`SOX=F`)를 별도 수집하며, 미국 정규장 외에는 `SOX-F`, 정규장 중에는 `SOX`로 표시합니다. 선물은 Signal weight에는 사용하지 않습니다.
+- 대시보드 시장 metric용으로 `FUTURES:SOX` (`SOX=F`)를 별도 수집합니다. 미국 정규장 중에는 fresh한 `INDEX:SOX`를 `SOX`로 우선 표시하고, 현물 값이 stale/missing이면 `FUTURES:SOX`로 fallback합니다. 정규장 밖에는 `SOX-F`를 표시하며, 선택된 SOX/SOX-F source의 provider `observed_at`이 5분 freshness 기준을 넘으면 마지막 가격을 현재값처럼 유지하지 않고 unavailable로 표시합니다. 선물은 Signal weight에는 사용하지 않습니다.
 - Nasdaq-100 선물 canonical symbol은 `FUTURES:NQ`, Yahoo provider symbol은 `NQ=F`입니다.
 - 뉴스, 금리, 유가 등은 이 4개 Rule Signal의 weight map에 섞지 않습니다.
 - freshness와 quality는 각 입력의 실제 유효 가중치에 계속 반영됩니다.
