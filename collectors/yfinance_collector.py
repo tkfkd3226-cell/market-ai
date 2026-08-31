@@ -102,6 +102,7 @@ class YFinanceCollector:
         daily_frame = self._ticker_frame(daily, provider_symbol)
         previous_close = self._previous_close(
             daily_frame,
+            intraday_frame=intraday_frame if mapping.symbol.startswith("INDEX:") else None,
             observed_at=observed_at,
             market_timezone=mapping.market_timezone,
         )
@@ -157,22 +158,77 @@ class YFinanceCollector:
     def _previous_close(
         daily_frame: pd.DataFrame,
         *,
+        intraday_frame: pd.DataFrame | None = None,
         observed_at: datetime,
         market_timezone: str,
     ) -> float | None:
-        if daily_frame.empty or "Close" not in daily_frame:
+        local_date = observed_at.astimezone(ZoneInfo(market_timezone)).date()
+
+        daily_date: object | None = None
+        daily_close: float | None = None
+        if not daily_frame.empty and "Close" in daily_frame:
+            closes = daily_frame["Close"].dropna()
+            for index, value in reversed(list(closes.items())):
+                candidate_date = pd.Timestamp(index).date()
+                if candidate_date < local_date:
+                    daily_date = candidate_date
+                    daily_close = float(value)
+                    break
+
+        if intraday_frame is not None:
+            intraday_candidate = YFinanceCollector._previous_intraday_session_close(
+                intraday_frame,
+                observed_at=observed_at,
+                market_timezone=market_timezone,
+            )
+            if intraday_candidate is not None:
+                intraday_date, intraday_close = intraday_candidate
+                # Yahoo's batched daily feed can occasionally lag by one session.
+                # For cash indices, use the newer completed intraday session only
+                # when it is strictly newer than the daily candidate.
+                if daily_date is None or intraday_date > daily_date:
+                    return intraday_close
+
+        return daily_close
+
+    @staticmethod
+    def _previous_intraday_session_close(
+        intraday_frame: pd.DataFrame,
+        *,
+        observed_at: datetime,
+        market_timezone: str,
+    ) -> tuple[object, float] | None:
+        if intraday_frame.empty or "Close" not in intraday_frame:
             return None
 
-        closes = daily_frame["Close"].dropna()
+        closes = intraday_frame["Close"].dropna()
         if closes.empty:
             return None
 
-        local_date = observed_at.astimezone(ZoneInfo(market_timezone)).date()
-        last_daily_date = pd.Timestamp(closes.index[-1]).date()
+        market_tz = ZoneInfo(market_timezone)
+        local_date = observed_at.astimezone(market_tz).date()
 
-        if last_daily_date >= local_date:
-            if len(closes) < 2:
-                return None
-            return float(closes.iloc[-2])
+        index = pd.DatetimeIndex(closes.index)
+        if index.tz is None:
+            index = index.tz_localize(timezone.utc)
+        local_index = index.tz_convert(market_tz)
 
-        return float(closes.iloc[-1])
+        candidate_positions = [
+            position
+            for position, timestamp in enumerate(local_index)
+            if timestamp.date() < local_date
+        ]
+        if not candidate_positions:
+            return None
+
+        previous_session_date = max(local_index[position].date() for position in candidate_positions)
+        previous_session_positions = [
+            position
+            for position in candidate_positions
+            if local_index[position].date() == previous_session_date
+        ]
+        if not previous_session_positions:
+            return None
+
+        last_position = previous_session_positions[-1]
+        return previous_session_date, float(closes.iloc[last_position])
