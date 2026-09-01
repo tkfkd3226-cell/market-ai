@@ -1,292 +1,357 @@
 # Market AI
 
-<!-- PYTHON_FREE_LOCAL_SUITE_START -->
-## Python-free Local Suite 운영
-
-Windows의 일반 실행 진입점은 `InvestmentLocalSuite.exe`다. 대상 PC에는 별도의 Python, pip, venv 설치가 필요하지 않는다.
-
-실행 순서:
-
-```text
-InvestmentLocalSuite.exe
-→ eFriend Expert
-→ 자동 로그인 / 인증서 선택
-→ KisKospi200Bridge.exe
-→ MarketAI.exe
-→ Dashboard embedded HTTP (:8000)
-→ 브라우저 / 트레이
-```
-
-Market AI API는 `MarketAI.exe`가 `127.0.0.1:8001`에서 제공한다. Python 런타임과 Python 패키지는 PyInstaller 빌드 결과에 포함되며 외부 Python 설치를 호출하지 않는다.
-
-런타임에서 외부로 유지하는 항목:
-
-```text
-MarketAI.exe
-_internal/
-KisKospi200Bridge.exe
-InvestmentLocalSuite.ico
-.env
-db/market_signal.db
-../investment-dashboard/
-```
-
-`.env`와 `db/market_signal.db`는 빌드 산출물에 넣지 않는다. 특히 `db/market_signal.db`는 누적 운영 데이터이므로 빌드·패치·배포 정리 과정에서 삭제하거나 초기화하지 않는다.
-
-개발/재빌드:
-
-- Market AI Python 백엔드 수정 → `build-market-ai.ps1` 실행 → `MarketAI.exe` + `_internal` 갱신
-- Local Suite UI·자동로그인·실행순서 수정 → `build-investment-local-suite.ps1` 실행 → `InvestmentLocalSuite.exe` 갱신
-- Dashboard HTML/CSS/JS 수정 → EXE 재빌드 불필요
-- `.env` 설정 및 SQLite 데이터 변경 → EXE 재빌드 불필요
-
-`start-local-server.pyw`와 `start-local-server.pyw.phase1.bak`은 최종 대상 PC의 일반 실행에는 필요하지 않지만 **개발 저장소에서는 런처 재빌드를 위해 보존한다**.
-
-2026-09-01 No-Python QA에서 Python PATH/환경변수를 차단하고 `python.exe`, `pythonw.exe`, `py.exe`가 탐색되지 않는 상태에서도 Market AI health 200, Dashboard 200 및 신규 Python 프로세스 없음이 확인되었다.
-<!-- PYTHON_FREE_LOCAL_SUITE_END -->
-
-로컬 PC에서 시장 데이터, 뉴스, 실제 KOSPI200 선물, Signal Engine, Backtest, Calibration을 통합해 **AI Market Signal**을 생성하는 프로젝트입니다.
-
-현재 기준은 **Market AI 1~14차 + KIS eFriend Expert KOSPI200 Futures Bridge 2차 + 투자 대시보드 Front↔Backend 통합 QA**까지 완료된 상태입니다.
+로컬 Windows PC에서 시장 데이터, 실제 KOSPI200 선물, Signal Engine, Backtest, Calibration을 통합해 **AI Market Signal**을 생성하고 투자 대시보드에 제공하는 프로젝트입니다.
 
 > 자동 주문 시스템이 아닙니다.  
 > 주문 API, 계좌번호, 계좌 비밀번호를 사용하지 않습니다.
 
 ---
 
-## 현재 상태
+# 1. 현재 운영 구조
+
+## 1.1 Python-free Local Suite
+
+일반 사용자는 대상 PC에 Python, pip, venv를 별도로 설치하지 않습니다.
 
 ```text
-Market AI 1~14차                    ✅
-시장 데이터 수집                     ✅
-뉴스 수집                           ✅
-OpenAI 뉴스 분석 코드                ✅
-Signal Engine                       ✅ stage6_rule_v7
-SOX 현물 전환 / NQ 선물 기준 정리    ✅ 11차
-4개 Rule Signal 직접 입력 재정의     ✅ 12차
-Backtest                            ✅
-Calibration                         ✅
-eFriend Expert C# Bridge            ✅
-KOSPI200 야간 CMEC_R 실제 수신       ✅
-C# Bridge → Market AI 실통신         ✅
-Signal Engine 실제 KIS 선물 반영      ✅
-Bridge 2차 QA 수정 반영              ✅
-Bridge 2차 수정본 재QA               ✅ 58/58 PASS
-KOSPI200 근월물 자동 rollover        ✅ 구현
-AUTO 휴장일 경계값 QA               ✅ 53/53 PASS
-주간 FC_R 실시간 확인                ✅ 실증
-Signal v7 phase / checkpoint QA     ✅
-Dashboard endpoint 실패 격리         ✅
-SOX ↔ SOX-F 시장 표시 전환           ✅
-OpenAI 실제 API live QA             ⏸ 선택 기능 · 보류
+Desktop shortcut
+→ Windows Scheduled Task (Highest)
+→ InvestmentLocalSuite.exe + _suite_internal/
+→ eFriend Expert
+→ 자동 로그인 / 인증서 선택
+→ KisKospi200Bridge.exe
+→ MarketAI.exe + _internal/
+→ FastAPI 127.0.0.1:8001
+→ Dashboard embedded HTTP :8000
+→ 브라우저 / 시스템 트레이
 ```
 
-현재 필수 후속 작업은 없습니다. Signal v7 시간대 전환, checkpoint 유효가중치, 대시보드 endpoint 실패 격리까지 통합 QA를 완료했습니다. OpenAI live API QA와 CMEH_R 호가 교차검증은 필요할 때만 진행하는 선택 항목입니다.
+현재 런처와 Market AI는 모두 PyInstaller **onedir** 구조입니다.
+
+```text
+InvestmentLocalSuite.exe
+_suite_internal/
+
+MarketAI.exe
+_internal/
+```
+
+`InvestmentLocalSuite.exe`는 관리자 권한이 필요한 현재 자동화 구조를 유지합니다. 일반 실행은 미리 등록한 Highest Scheduled Task를 호출하는 바탕화면 바로가기를 사용하여 매번 UAC 승인을 반복하지 않는 운영 형태를 기준으로 합니다.
+
+Market AI API 자체는 계속 다음 loopback 주소에서 실행됩니다.
+
+```text
+http://127.0.0.1:8001
+```
+
+외부 Python 실행 파일이나 `python -m uvicorn`, `python -m http.server`, runtime pip 설치에는 의존하지 않습니다.
 
 ---
 
-# 프로젝트 구조
+## 1.2 실행 폴더와 개발 폴더 분리
+
+현재 폴더 역할은 다음과 같습니다.
+
+### 실행 전용
 
 ```text
-market-ai/
-├─ app.py                     # FastAPI entry
-├─ config.py                  # 환경변수 설정
-├─ requirements.txt           # 필수 Python 패키지
-├─ requirements-openai.txt    # 선택: OpenAI 기능 패키지
+market-ai\
+├─ InvestmentLocalSuite.exe
+├─ _suite_internal\
+├─ MarketAI.exe
+├─ _internal\
+├─ KisKospi200Bridge.exe
+├─ KisKospi200Bridge.exe.config
+├─ AxInterop.ITGExpertCtlLib.dll
+├─ Interop.ITGExpertCtlLib.dll
+├─ InvestmentLocalSuite.ico
+├─ README.md
+├─ db\
+│  └─ market_signal.db
+└─ tools\
+   └─ close-efriend-tray.ps1
+```
+
+`.env`는 **기본 실행에 필수 파일이 아닙니다.** OpenAI 뉴스 분석이나 운영 override 등 환경설정이 실제로 필요한 경우에만 외부 파일로 둘 수 있습니다.
+
+### 개발 / 재빌드
+
+```text
+market-ai-dev\
+├─ app.py
+├─ config.py
+├─ run_market_ai.py
+├─ start-local-server.pyw
+├─ build-market-ai.ps1
+├─ build-investment-local-suite.ps1
+├─ Sign-InvestmentLocalSuite.ps1
 ├─ build-kis-bridge-release.bat
-├─ .env.example
-│
-├─ ai/                        # OpenAI 뉴스 구조화
-├─ backtest/                  # 예측/실제 결과 평가
-├─ bridges/
-│  ├─ kis_efriend.py          # KIS eFriend Bridge 수신 API/저장
-│  └─ kospi200_contract.py    # KRX 거래일·근월물·세션 AUTO 판정
-├─ calibration/               # 확률 Calibration
-├─ collectors/                # yfinance 시장 collector
-├─ db/                        # SQLAlchemy repository / SQLite
-├─ market/                    # symbol catalog / provider mapping
-├─ news/                      # GDELT news collector
-├─ signals/                   # Rule-based Signal Engine
-│
-├─ KisKospi200Bridge/         # C# WinForms eFriend Expert Bridge
-├─ KisKospi200Bridge.sln
-│
-├─ eFriendQA/                 # eFriend 참고/QA 자료
-│  ├─ expert_manual.pdf
-│  └─ expert_CS_Sample.zip
-│
+├─ requirements.txt
+├─ requirements-openai.txt
+├─ ai\
+├─ backtest\
+├─ bridges\
+├─ calibration\
+├─ collectors\
+├─ db\
+├─ market\
+├─ news\
+├─ signals\
+├─ KisKospi200Bridge\
+├─ eFriendQA\
 └─ market_ai_project_handover.md
 ```
 
-`eFriendQA/`는 실행 필수 폴더가 아니라 향후 eFriend API 검증을 위한 참고자료 보관 위치입니다.
+빌드 산출물은 필요 시 다시 만들 수 있지만 개발 소스와 빌드 스크립트는 `market-ai-dev`에서 보존합니다.
 
 ---
 
-# 빠른 실행
+## 1.3 재빌드 계약
 
-## 1. Python 패키지
+### Market AI 백엔드 수정
 
-투자성과 대시보드의 `start-local-server.pyw`를 사용하는 일반 실행에서는 필수 패키지가 없으면 최초 실행 때 `requirements.txt`를 자동 설치합니다. 수동 설치가 필요할 때만 아래 명령을 사용합니다.
-
-```bat
-python -m pip install -r requirements.txt
+```text
+market-ai-dev의 Python source 수정
+→ build-market-ai.ps1
+→ MarketAI.exe + _internal/
+→ market-ai 실행 폴더의 두 항목을 함께 교체
 ```
 
-OpenAI 기능은 선택 사항입니다. 나중에 사용할 때만 아래를 실행합니다.
+`MarketAI.exe`와 `_internal/`은 **항상 한 세트**로 배포합니다.
 
-```bat
-python -m pip install -r requirements-openai.txt
+### Local Suite 수정
+
+```text
+start-local-server.pyw 수정
+→ build-investment-local-suite.ps1
+→ InvestmentLocalSuite.exe + _suite_internal/
+→ market-ai 실행 폴더에 함께 배포
 ```
 
-## 2. 환경설정
+현재 launcher는 EDR heuristic 회귀를 피하기 위해 **onedir 구조**를 유지합니다. 특별한 이유 없이 onefile 구조로 되돌리지 않습니다.
+
+### KIS Bridge 수정
+
+```text
+KisKospi200Bridge source 수정
+→ build-kis-bridge-release.bat
+→ Release/x86 빌드
+→ 실행 폴더의 EXE/config/interop DLL 갱신
+```
+
+### Dashboard 수정
+
+```text
+investment-dashboard의 HTML/CSS/JS 수정
+→ EXE 재빌드 불필요
+```
+
+---
+
+# 2. 외부 Dashboard에서 Market AI 사용
+
+Market AI 계산, eFriend, 인증서, KIS Bridge, SQLite는 계속 로컬 PC에서 동작합니다.
+
+외부 대시보드는 Tailscale Serve를 통해 **API 결과만** 조회합니다.
+
+## 2.1 현재 원격 조회 경로
+
+```text
+GitHub Pages Dashboard
+https://tkfkd3226-cell.github.io/investment-dashboard
+        ↓
+dashboard-market-ai.js
+        ↓
+https://node.tail60a98e.ts.net
+        ↓
+Tailscale Serve
+        ↓
+http://127.0.0.1:8001
+        ↓
+MarketAI.exe
+```
+
+Tailscale Serve endpoint:
+
+```text
+https://node.tail60a98e.ts.net
+```
+
+Market AI API의 8001 포트를 인터넷에 직접 포트포워딩하지 않습니다. FastAPI는 계속 `127.0.0.1:8001`에만 바인딩하고 Tailscale Serve가 tailnet 내부 HTTPS reverse proxy 역할을 합니다.
+
+외부에서 Market AI가 표시되려면:
+
+1. Market AI가 설치된 Windows PC가 켜져 있어야 함
+2. Investment Local Suite가 실행 중이어야 함
+3. PC의 Tailscale이 연결되어 있어야 함
+4. 외부에서 보는 폰/PC도 같은 tailnet에 연결되어 있어야 함
+
+PC나 Tailscale이 꺼져 있어도 GitHub Pages 대시보드의 일반 기능은 계속 사용할 수 있고 Market AI 부분만 사용할 수 없습니다.
+
+---
+
+## 2.2 CORS 운영 계약
+
+GitHub Pages의 JavaScript가 Tailscale Serve 경유 Market AI API를 `fetch()`할 수 있도록 FastAPI `app.py`의 CORS 허용 Origin에 다음을 포함합니다.
+
+```text
+https://tkfkd3226-cell.github.io
+```
+
+주의:
+
+- CORS에는 `/investment-dashboard` 같은 path가 아니라 **Origin**만 등록합니다.
+- 모든 Origin을 의미하는 `*`로 넓히지 않고 실제 대시보드 Origin을 명시적으로 허용하는 현재 방식을 유지합니다.
+- GitHub Pages host가 바뀌면 `app.py`의 CORS Origin도 함께 수정해야 합니다.
+- `app.py`를 수정한 경우 `build-market-ai.ps1`로 다시 빌드하고 **MarketAI.exe + `_internal/`을 함께 교체**해야 실제 런타임에 반영됩니다.
+
+현재 원격 조회가 정상인지 확인할 때는 Tailscale 연결 상태에서 다음과 같은 API를 직접 확인할 수 있습니다.
+
+```text
+https://node.tail60a98e.ts.net/api/health
+```
+
+---
+
+# 3. 투자 대시보드 연동
+
+Dashboard용 주요 조회 API:
+
+```text
+GET /api/health
+GET /api/market-data/snapshot
+GET /api/signal/latest?include_details=true
+GET /api/bridge/kis-efriend/status
+```
+
+현재 Dashboard의 시장 metric은 다음 네 가지를 사용합니다.
+
+```text
+KOSPI
+KOSPI200 선물
+SOX
+NQ100 선물
+```
+
+SOX 화면 표시도 현재 `INDEX:SOX` 현물지수를 사용합니다. `FUTURES:SOX`는 현재 Dashboard Market AI 표시나 Signal weight의 대체값으로 사용하지 않습니다.
+
+Dashboard는 선택한 과거 투자 기준일과 별개로 **현재 시점의 Market AI**를 표시합니다.
+
+Dashboard frontend의 레이아웃, Mobile dialog, `dashboard-view` 파라미터, CSS/responsive contract는 `investment-dashboard` 프로젝트의 `main_dashboard_maintenance_handover.md`가 Source of Truth입니다.
+
+---
+
+# 4. 현재 기능 상태
+
+```text
+시장 데이터 수집                     ✅
+뉴스 수집                           ✅
+OpenAI 뉴스 분석 코드                ✅ 선택 기능
+Signal Engine                       ✅ stage6_rule_v7
+Backtest                            ✅
+Calibration                         ✅
+eFriend Expert C# Bridge            ✅
+KOSPI200 주간 FC_R                  ✅
+KOSPI200 야간 CMEC_R                ✅
+실제 KIS 선물 → Signal Engine       ✅
+KOSPI200 근월물 AUTO rollover       ✅
+KRX 휴장일/session 정책             ✅
+Dashboard endpoint 실패 격리         ✅
+Dashboard 로컬 Market AI 조회        ✅
+Dashboard 원격 Tailscale 조회        ✅
+GitHub Pages CORS 허용               ✅
+Python-free target runtime           ✅
+External Python process 불필요       ✅
+OpenAI 실제 API live QA              ⏸ 선택 기능
+```
+
+---
+
+# 5. 환경설정
 
 기본 Market AI 실행에는 `.env`가 필요하지 않습니다.
 
-OpenAI 뉴스 분석은 선택 기능이며 기본값은 비활성화입니다. 나중에 이 기능을 사용할 때만 `.env.example`을 참고해 로컬 `.env`를 만들고 API Key를 넣습니다.
+OpenAI 뉴스 분석이나 명시적 운영 override가 필요한 경우에만 `.env.example`을 참고하여 개발/운영 PC에 `.env`를 둘 수 있습니다.
+
+예:
 
 ```text
 MARKET_AI_AI_ENABLED=false
 OPENAI_API_KEY=
 ```
 
-OpenAI가 비활성화되어 있거나 API Key가 없으면 오류로 취급하지 않습니다. `stage6_rule_v5`부터 대시보드의 4개 Rule Signal은 뉴스 입력을 사용하지 않으므로 OpenAI/뉴스 상태가 `data_completeness`와 `confidence`에 영향을 주지 않습니다.
+OpenAI가 비활성화되어 있거나 API Key가 없으면 기본 Market AI 운영 오류로 취급하지 않습니다.
 
-`.env`는 공유 ZIP이나 GitHub에 넣지 않습니다.
-
-## 3. Market AI 실행
-
-투자성과 대시보드와 함께 사용하는 일반 실행은 투자성과 대시보드 프로젝트의 `start-local-server.pyw` Python 트레이 런처를 사용합니다. 런처는 **eFriend Expert → KIS KOSPI200 Bridge → Market AI API → Dashboard** 순서로 실행하며, Bridge 프로세스가 확인되기 전에는 API와 Dashboard를 시작하지 않습니다.
-
-Market AI API만 단독으로 확인할 필요가 있을 때는 별도 BAT 없이 `market-ai` 폴더에서 직접 실행합니다.
-
-```bat
-python -m uvicorn app:app --host 127.0.0.1 --port 8001
-```
-
-기본 주소:
-
-```text
-http://127.0.0.1:8001
-```
-
-Swagger:
-
-```text
-http://127.0.0.1:8001/docs
-```
-
-기본 상태 확인:
-
-```text
-GET /api/health
-GET /api/collector/status
-GET /api/news/status
-GET /api/ai-news/status
-GET /api/signal/status
-```
+실제 API Key, 인증정보, 비밀값은 GitHub, 공유 ZIP, README, handover에 넣지 않습니다.
 
 ---
 
-# KIS eFriend KOSPI200 Futures Bridge
+# 6. 데이터 보존
 
-## 실행파일 배포 위치
-
-로컬 운영용 실행파일은 `market-ai` 루트의 다음 파일을 사용합니다.
+## 6.1 운영 DB
 
 ```text
-market-ai\KisKospi200Bridge.exe
+db/market_signal.db
 ```
 
-`KisKospi200Bridge\bin\x86\Debug`는 개발 빌드 산출물 경로이므로 운영 실행 경로로 사용하지 않습니다. `build-kis-bridge-release.bat`가 최신 소스를 Release/x86으로 빌드하고 EXE, config, eFriend interop DLL을 `market-ai` 루트로 복사합니다. `start-local-server.pyw`는 사전 빌드된 루트 실행파일을 사용하며 기동 중 자동 재빌드하지 않습니다. Bridge 소스를 변경했거나 새 작업환경에서 루트 runtime이 없다면 먼저 `build-kis-bridge-release.bat`을 수동 실행합니다.
+누적 Signal / Backtest / Calibration 및 운영 이력이 들어 있는 mutable resource입니다.
 
-## 시스템 트레이 동작
+다음 작업에서 삭제하거나 초기화하지 않습니다.
 
-Bridge는 일반 실행 시 메인 창을 띄우지 않고 시스템 트레이에서 시작합니다. eFriend ActiveX 초기화를 위해 WinForms 창 자체는 생성하되, 최초 표시 단계에서 즉시 숨겨 작업표시줄에는 노출하지 않습니다.
+- EXE 빌드
+- `_internal` 교체
+- 런처 교체
+- 문서 정리
+- runtime 폴더 cleanup
 
-- 트레이 아이콘 우클릭 → `View`: Bridge 상태 창 표시
-- 트레이 아이콘 우클릭 → `종료`: 실시간 구독을 정리하고 Bridge 프로세스 종료
-- 트레이 아이콘 더블클릭: `View`와 동일
-- 상태 창의 최소화 또는 닫기(X): 프로세스를 종료하지 않고 다시 트레이로 숨김
+DB schema/data migration이 필요한 경우에도 기존 운영 데이터 보존을 최우선으로 합니다.
 
-따라서 운영 중 Bridge 종료는 창의 X가 아니라 트레이 메뉴의 `종료`를 기준으로 합니다.
+## 6.2 `.env`
 
-통합 Python 런처에서는 Bridge를 Market AI API보다 먼저 실행합니다. Bridge의 `AUTO` route는 API의 `/api/bridge/kis-efriend/route-code`를 사용하므로 최초 수 초 동안 `연결 오류/시장 정책 확인 중`이 표시될 수 있지만, 기존 5초 재시도 루프가 API 준비 후 자동으로 route를 회복하므로 별도 재실행이 필요하지 않습니다.
+`.env`가 존재하는 PC에서는 외부 mutable configuration으로 취급합니다.
 
-## 사전 조건
-
-- eFriend Expert 설치
-- Open API 사용 가능 상태
-- eFriend Expert 로그인
-- Visual Studio 2022 / `.NET 데스크톱 개발`
-- Bridge:
-  - `.NET Framework 4.8`
-  - `x86`
-- eFriend Expert와 Bridge는 관리자 권한 실행 기준
-
-KOSPI200 근월물은 기본적으로 `AUTO`로 해석합니다.
-
-현재 예시:
-
-```text
-2026-09 → A01609
-```
-
-AUTO 월물 판정의 단일 기준은 Market AI 서버입니다. 서버는 KRX `XKRX` 거래 캘린더를 우선 사용하고, 캘린더 지원 범위를 벗어난 미래 날짜는 한국 공휴일(설·추석·석가탄신일 포함) 계산으로 fallback합니다. KRX 규칙대로 명목상 두 번째 목요일이 휴장일이면 직전 거래일까지 최종거래일을 순차적으로 앞당깁니다.
-
-실제 최종거래일에는 만기 월물이 15:20에 종료되므로 **15:20부터 다음 분기월로 rollover**합니다. 18:00 이후 야간거래는 다음 거래일에 속하며 이미 새 근월물을 사용합니다. C# Bridge의 `AUTO`는 자체 달력/시간 판정을 하지 않고 Market AI의 `/api/bridge/kis-efriend/route-code`를 5초마다 조회해 같은 월물과 `FC_R` / `CMEC_R` / `CLOSED` 상태를 그대로 따릅니다.
-
-예측할 수 없는 임시휴장·선거일 등 거래소 특수 일정은 `.env`의 `MARKET_AI_KRX_CLOSED_DATES` / `MARKET_AI_KRX_OPEN_DATES`로 날짜만 override할 수 있습니다. 정규장은 열지만 해당 날짜 18시에 개시하는 야간장만 특별 휴장하는 경우에는 `MARKET_AI_KRX_NIGHT_CLOSED_DATES`를 사용합니다. 종목 자체를 긴급 고정해야 할 때만 `MARKET_AI_KIS_KOSPI200_CODE` 또는 Bridge 종목코드 입력란을 사용합니다.
+- EXE에 포함하지 않음
+- GitHub/공유 ZIP에 넣지 않음
+- 기본 실행 필수로 가정하지 않음
 
 ---
 
-## 실시간 서비스
+# 7. KIS eFriend KOSPI200 Futures Bridge
 
-주간:
+Bridge는 KIS eFriend Expert의 실제 KOSPI200 선물 real-time 데이터를 Market AI에 전달합니다.
 
-```text
-FC_R
-```
-
-야간:
+환경:
 
 ```text
-CMEC_R
+.NET Framework 4.8
+x86
 ```
 
-Bridge AUTO 기준:
+주요 실시간 서비스:
 
 ```text
-KRX 거래일 08:45~15:45 → FC_R
-장외/정규 휴장일           → CLOSED / 구독 해제
-야간 개시일이 KRX 거래일인 18:00~익일06:00 → CMEC_R
-야간 개시일이 주말·공휴일·휴장일          → CLOSED / 구독 해제
+주간  FC_R
+야간  CMEC_R
 ```
 
-야간 휴장 여부는 **야간장이 시작되는 날짜**를 기준으로 판단합니다. 따라서 목요일 정규장이 정상 개장했다면 금요일이 공휴일이어도 목요일 18:00~금요일 06:00 야간장은 열리고, 공휴일 당일 18:00에 시작할 야간장은 열리지 않습니다.
-
-AUTO session check:
+canonical symbol:
 
 ```text
-5초
+FUTURES:KOSPI200
 ```
 
-eFriend raw Tick은 UI에서 모두 받지만 Market AI 전송은 최대:
+실제 source 형식:
 
 ```text
-5초에 1회
+kis-efriend:day:FC_R:<instrument_code>
+kis-efriend:night:CMEC_R:<instrument_code>
 ```
 
-heartbeat:
+`<instrument_code>`는 AUTO 근월물 정책에 따라 달라지므로 특정 월물 코드를 문서 상수처럼 고정하지 않습니다.
 
-```text
-10초
-```
+Bridge는 서버의 route 정책을 기준으로 현재 근월물과 `FC_R / CMEC_R / CLOSED` 상태를 따릅니다.
 
----
-
-# KIS → Market AI 연동
-
-Bridge가 Market AI에 사용하는 API:
+주요 Bridge API:
 
 ```text
 POST /api/bridge/kis-efriend/tick
@@ -298,121 +363,48 @@ GET  /api/bridge/kis-efriend/route
 GET  /api/bridge/kis-efriend/route-code
 ```
 
-canonical symbol:
+heartbeat와 실제 quote freshness는 서로 다른 의미입니다. heartbeat가 정상이어도 오래된 quote를 fresh한 현재가로 간주하지 않습니다.
+
+---
+
+# 8. KOSPI200 AUTO route
+
+AUTO 근월물/session의 단일 기준은 Market AI 서버입니다.
+
+`bridges/kospi200_contract.py`가 다음을 책임집니다.
+
+- KRX 거래일 판정
+- 휴장일 override
+- 분기월/근월물 계산
+- 실제 최종거래일 rollover
+- 주간 / 야간 / CLOSED session
+- Bridge route code
+
+C# Bridge가 독자적인 월물·휴장일 정책을 별도로 유지하지 않습니다.
+
+정확한 시간 경계와 override 값은 현재 소스 및 `.env.example`을 Source of Truth로 합니다.
+
+---
+
+# 9. 데이터 무결성
+
+가장 중요한 원칙:
 
 ```text
 FUTURES:KOSPI200
+= 실제 KIS eFriend KOSPI200 선물
 ```
 
-source 형식:
-
-야간:
-
-```text
-kis-efriend:night:CMEC_R:<instrument_code>
-```
-
-주간:
-
-```text
-kis-efriend:day:FC_R:<instrument_code>
-```
-
-2026-09 월물 실증에서는 `<instrument_code>`가 `A01609`였다. AUTO rollover 이후에는 서버가 판정한 현재 근월물 코드가 들어간다.
-
-실시간 snapshot은 KIS futures tick으로 갱신합니다.
-
-SQLite history는 거래소 raw Tick을 모두 저장하지 않고 기본:
-
-```text
-60초
-```
-
-간격으로 샘플링합니다.
-
-관련 환경변수:
-
-```text
-# blank = AUTO rollover, value = emergency fixed-code override
-MARKET_AI_KIS_KOSPI200_CODE=
-MARKET_AI_KIS_HISTORY_INTERVAL_SECONDS=60
-MARKET_AI_KIS_HEARTBEAT_STALE_SECONDS=30
-# one-off KRX calendar overrides (comma-separated YYYY-MM-DD)
-# MARKET_AI_KRX_CLOSED_DATES=
-# MARKET_AI_KRX_OPEN_DATES=
-# MARKET_AI_KRX_NIGHT_CLOSED_DATES=
-```
-
-`MARKET_AI_KIS_KOSPI200_CODE`를 비워두면 서버가 현재 KRX 거래일·실제 최종거래일·15:20 cutoff를 기준으로 AUTO 근월물만 허용하며, 다른 종목코드는 `FUTURES:KOSPI200`으로 저장하지 않습니다. Bridge가 AUTO이면 서버가 알려주는 동일 코드와 현재 세션 정책(`FC_R` / `CMEC_R` / `CLOSED`)으로 자동 구독·해제합니다.
-
-`MARKET_AI_KRX_CLOSED_DATES` / `MARKET_AI_KRX_OPEN_DATES`는 캘린더에 아직 반영되지 않은 일회성 정규장 휴장/개장일을 위한 날짜 override입니다. `MARKET_AI_KRX_NIGHT_CLOSED_DATES`는 정규장은 열지만 해당 날짜 18시에 시작하는 야간장만 특별 휴장하는 경우를 위한 override입니다. fallback 캘린더는 KRX 고유 휴장인 5월 1일 근로자의 날과 연말 휴장일까지 반영합니다. 종목코드 고정 override는 마지막 비상수단으로만 사용합니다.
-
-heartbeat도 주간 `FC_R/day`, 야간 `CMEC_R/night`, 장외 `service=null/closed` 조합만 허용합니다.
-
----
-
-# 실제 야간 연동 확인 상태
-
-야간 `CMEC_R`은 실제 eFriend Expert 시세로 실증 완료했습니다.
-
-확인된 경로:
-
-```text
-eFriend Expert
-→ CMEC_R
-→ C# Bridge
-→ Market AI API
-→ market_snapshot
-→ FUTURES:KOSPI200
-→ Signal Engine
-```
-
-Bridge 화면에서:
-
-- 실제 가격 갱신
-- 전일대비율
-- 거래량
-- 매도1 / 매수1
-- Tick count
-- `Market AI 연결됨 · N건`
-
-을 확인했고, 사용자가 보는 증권앱의 야간선물 가격과 동일함을 확인했습니다.
-
-`GET /api/signal/latest`에서도:
-
-```text
-kospi200_futures.available = true
-source = kis-efriend:night:CMEC_R:A01609
-freshness_weight = 1.0
-quality = 1.0
-```
-
-으로 실제 KIS 선물이 Signal Engine에 반영되는 것을 확인했습니다.
-
-주간 `FC_R`은 2026-08-24 실제 주간장에서 AUTO 라우팅 → 실시간 수신 → Market AI → 대시보드 표시까지 확인했습니다.
-
----
-
-# 데이터 무결성 원칙
-
-가장 중요한 원칙입니다.
-
-Yahoo:
-
-```text
-^KS200
-```
-
-은 KOSPI200 **현물지수 proxy**일 뿐 실제 KOSPI200 선물이 아닙니다.
+Yahoo `^KS200`은 KOSPI200 현물지수 proxy일 뿐 실제 KOSPI200 선물이 아닙니다.
 
 따라서:
 
-- `FUTURES:KOSPI200`에 실제 선물처럼 저장하지 않음
-- proxy를 사용할 경우 source에서 명확히 표시
-- 실제 KIS futures snapshot을 proxy가 덮어쓰지 못하도록 보호
-- Signal / Backtest / Calibration에 잘못된 label을 남기지 않음
+- proxy를 실제 `FUTURES:KOSPI200`으로 저장하지 않음
+- 실제 KIS futures snapshot을 proxy가 덮어쓰지 않음
+- 실제값이 없으면 결측을 허용
+- 잘못된 source label을 Signal / Backtest / Calibration에 남기지 않음
 
-기본값:
+기본 정책:
 
 ```text
 MARKET_AI_ALLOW_KOSPI200_INDEX_PROXY=false
@@ -420,111 +412,97 @@ MARKET_AI_ALLOW_KOSPI200_INDEX_PROXY=false
 
 ---
 
-# 주요 API
+# 10. Signal Engine
 
-## 시장 데이터
-
-```text
-GET /api/market-data/catalog
-GET /api/market-data/snapshot
-GET /api/market-data/history/{symbol}
-```
-
-## Collector
-
-```text
-GET  /api/collector/status
-GET  /api/collector/mappings
-POST /api/collector/run-once
-```
-
-## 뉴스
-
-```text
-GET  /api/news/status
-GET  /api/news/topics
-GET  /api/news/latest
-POST /api/news/run-once
-```
-
-## OpenAI 뉴스
-
-```text
-GET  /api/ai-news/status
-GET  /api/ai-news/categories
-GET  /api/ai-news/latest
-POST /api/ai-news/run-once
-```
-
-## Signal
-
-```text
-GET  /api/signal/status
-GET  /api/signal/weights
-GET  /api/signal/latest
-GET  /api/signal/history
-POST /api/signal/run-once
-```
-
-현재 Signal Engine:
+현재 engine version:
 
 ```text
 stage6_rule_v7
 ```
 
-대시보드의 4개 신호는 이름과 입력 의미가 일치하도록 분리합니다.
+## KOSPI 방향
 
 ```text
-코스피      KOSPI 현물 35% + KOSPI200 선물 65%
-반도체      삼성전자 20% + SK하이닉스 20% + SOX 20%
-            + NVIDIA 15% + SK하이닉스 ADR 15% + Micron 10%
-갭상        장전/비거래일: KOSPI200 선물 50% + SOX 25% + Nasdaq-100 선물 20% + USD/KRW 5%
-            장중: 09:00 직전 마지막 장전 신호를 고정
-            장마감 후: 다음 KRX 거래일 갭 예측으로 전환
-상승마감    장전: KOSPI200 선물 50% + SOX 30% + Nasdaq-100 선물 20%
-            장중: KOSPI 현물 45% + KOSPI200 선물 35% + SOX 12% + Nasdaq-100 선물 8%
-            15:30 이후: KOSPI 종가 snapshot이 확정되면 실제 상승/하락/보합 결과로 종료
+KOSPI 현물       35%
+KOSPI200 선물    65%
 ```
 
-- Rule Signal의 SOX 입력은 저유동성 선물(`SOX=F`)이 아니라 **PHLX 반도체 현물지수** `INDEX:SOX` (`^SOX`)를 계속 사용합니다.
-- 대시보드 시장 metric용으로 `FUTURES:SOX` (`SOX=F`)를 별도 수집합니다. 미국 정규장 중에는 fresh한 `INDEX:SOX`를 `SOX`로 우선 표시하고, 현물 값이 stale/missing이면 `FUTURES:SOX`로 fallback합니다. 정규장 밖에는 `SOX-F`를 표시하며, 선택된 SOX/SOX-F source의 provider `observed_at`이 5분 freshness 기준을 넘으면 마지막 가격을 현재값처럼 유지하지 않고 unavailable로 표시합니다. 선물은 Signal weight에는 사용하지 않습니다.
-- Nasdaq-100 선물 canonical symbol은 `FUTURES:NQ`, Yahoo provider symbol은 `NQ=F`입니다.
-- 뉴스, 금리, 유가 등은 이 4개 Rule Signal의 weight map에 섞지 않습니다.
-- freshness와 quality는 각 입력의 실제 유효 가중치에 계속 반영됩니다.
-- `stage6_rule_v7`은 v6의 직접 가중 0~100 원칙을 유지하면서 갭상/상승마감에 KRX 현금장 시간대 의미를 추가합니다. 기존 `gap_up_probability`, `up_close_probability` 필드명은 API/DB 호환을 위해 유지합니다.
-- 장중 갭상은 새로 계산하지 않고 09:00 직전 마지막 장전 예측을 고정합니다. 장전 체크포인트가 없으면 유효 신호 없음으로 표시합니다.
-- 상승마감은 장전/장중 weight map을 분리하고, 15:30 이후 당일 KOSPI 종가 snapshot이 확인되면 예측 점수 대신 실제 마감 결과로 전환합니다.
-- 시간대가 다른 상승마감 점수에 장전용 Calibration을 잘못 적용하지 않도록, v7은 signal phase별 calibration eligibility를 함께 저장합니다.
-
-세부 weight와 component 목록은 `GET /api/signal/weights`, 실제 계산 근거는 `GET /api/signal/latest?include_details=true`에서 확인합니다.
-
-## Backtest
+## 반도체 방향
 
 ```text
-GET  /api/backtest/status
-GET  /api/backtest/forecasts
-GET  /api/backtest/outcomes
-POST /api/backtest/outcomes
-POST /api/backtest/evaluate
-GET  /api/backtest/evaluations
-GET  /api/backtest/summary
-GET  /api/backtest/dataset
+삼성전자          20%
+SK하이닉스        20%
+SOX 현물지수      20%
+NVIDIA            15%
+SK하이닉스 ADR    15%
+Micron            10%
 ```
 
-## Calibration
+SOX Signal component는:
 
 ```text
-GET  /api/calibration/status
-POST /api/calibration/train
-GET  /api/calibration/models
-GET  /api/calibration/performance
+INDEX:SOX
 ```
+
+만 사용합니다.
+
+## 갭상
+
+장전/다음 거래일:
+
+```text
+KOSPI200 선물     50%
+SOX 현물지수      25%
+Nasdaq100 선물    20%
+USD/KRW            5%
+```
+
+- 장전: 당일 갭 예측
+- 장중: 09:00 직전 마지막 장전 checkpoint 고정
+- 장마감 후/휴장일: 다음 KRX 거래일 예측
+
+## 상승마감
+
+장전:
+
+```text
+KOSPI200 선물     50%
+SOX 현물지수      30%
+Nasdaq100 선물    20%
+```
+
+장중:
+
+```text
+KOSPI 현물        45%
+KOSPI200 선물     35%
+SOX 현물지수      12%
+Nasdaq100 선물     8%
+```
+
+15:30 이후 당일 KOSPI 종가 snapshot이 확인되면 예측값이 아니라 실제 상승/하락/보합 결과로 종료합니다.
+
+`gap_up_probability`, `up_close_probability` 필드명은 API/DB 호환을 위해 유지되며, calibration이 적용되지 않은 상태에서는 통계확률이 아니라 0~100 Rule Score 의미입니다.
 
 ---
 
-# OpenAI 뉴스 분석 (선택 기능)
+# 11. Backtest / Calibration
 
-Market AI의 필수 기능이 아닙니다. OpenAI를 사용하지 않아도 시장 데이터, KIS 선물, Signal Engine, Backtest, Calibration은 정상 동작합니다.
+Backtest와 Calibration은 미래 정보를 예측 시점에 역으로 섞지 않는 **No-lookahead** 원칙을 유지합니다.
+
+현재 calibration 방식:
+
+```text
+quantile_beta_pava_v1
+```
+
+엔진 버전 또는 target 의미가 바뀌면 과거 기록을 현재 의미로 소급 변환하지 않습니다.
+
+---
+
+# 12. OpenAI 뉴스 분석
+
+선택 기능입니다.
 
 기본:
 
@@ -532,129 +510,74 @@ Market AI의 필수 기능이 아닙니다. OpenAI를 사용하지 않아도 시
 MARKET_AI_AI_ENABLED=false
 ```
 
-나중에 기능을 사용할 경우의 live test 권장 순서:
+OpenAI를 사용하지 않아도:
 
-```text
-1. 로컬 .env에 OPENAI_API_KEY 설정
-2. Market AI 재시작
-3. GET  /api/ai-news/status
-4. POST /api/news/run-once
-5. POST /api/ai-news/run-once?limit=3
-6. GET  /api/ai-news/latest
-7. usage / cost 확인
-8. 정상 확인 후 자동 분석 활성화
-```
+- 시장 데이터
+- KIS 선물
+- Signal Engine
+- Backtest
+- Calibration
+- Dashboard 조회
 
-API Key는 채팅, ZIP, GitHub에 넣지 않습니다.
+는 정상 동작합니다.
 
-API Key가 없으면 `disabled_by_config`로 취급하며 오류가 아닙니다. API Key가 있어도 `MARKET_AI_AI_ENABLED=false`이면 자동 분석은 `manual_only` 상태로 유지되고 `POST /api/ai-news/run-once` 수동 테스트는 가능합니다. 비활성 상태에서는 과거 DB에 AI 뉴스 분석이 남아 있어도 새 Signal 계산에는 사용하지 않습니다.
-AI 뉴스의 `affected_assets` 허용 목록에서도 SOX는 `INDEX:SOX`만 사용하며 구형 `FUTURES:SOX`는 허용하지 않습니다.
+실제 API Key는 `.env`에서만 관리합니다.
 
 ---
 
-# Backtest / Calibration
+# 13. 운영 확인
 
-Backtest 공식 forecast는 기본적으로:
+일반 실행은 바탕화면의 Investment Local Suite 바로가기를 사용합니다.
 
-```text
-09:00 KST 직전 가장 최근 Signal
-```
-
-을 사용하며, 기본 최대 forecast age는:
+정상 상태의 핵심 프로세스:
 
 ```text
-12시간
+InvestmentLocalSuite.exe
+MarketAI.exe
+KisKospi200Bridge.exe
+efexpertmain.exe
 ```
 
-입니다.
-
-Calibration 방식:
+기본 로컬 확인:
 
 ```text
-quantile_beta_pava_v1
+http://127.0.0.1:8001/api/health
+http://localhost:8000/
 ```
 
-기본 최소 조건:
+원격 Tailscale 확인:
 
 ```text
-평가 완료 30일 이상
-positive 5개 이상
-negative 5개 이상
-서로 다른 raw score 3개 이상
+https://node.tail60a98e.ts.net/api/health
 ```
 
-No-lookahead 원칙을 유지합니다.
+Local Suite의 통합 종료 기능은 Dashboard embedded HTTP, MarketAI, KIS Bridge, eFriend Expert를 정리하는 현재 shutdown contract를 유지합니다.
 
 ---
 
-# 보존해야 할 파일
+# 14. GitHub 관계
 
-## 운영 DB
+Market AI 자체의 실행은 `.git/` 또는 GitHub에 의존하지 않습니다.
 
-```text
-db/market_signal.db
-```
-
-누적 이력 데이터가 포함되므로 업데이트/패치 시 임의 삭제하거나 덮어쓰지 않습니다.
-
-## 로컬 비밀설정
+다만 **Market AI를 소비하는 투자 대시보드**는 현재 GitHub Pages에서 제공되며, 해당 Pages Origin이 Market AI CORS 허용 대상입니다.
 
 ```text
-.env
+Dashboard Origin
+https://tkfkd3226-cell.github.io
 ```
 
-PC에서는 유지하지만 공유 ZIP에는 넣지 않습니다.
-
-## eFriend 참고자료
-
-```text
-eFriendQA/
-├─ expert_manual.pdf
-└─ expert_CS_Sample.zip
-```
-
-현재는 별도 보관합니다. 실행 필수는 아니지만 향후 eFriend QA에 사용할 수 있습니다.
+Market AI 소스 저장소 연결 여부와 Dashboard 공개 호스팅을 같은 의미로 취급하지 않습니다.
 
 ---
 
-# GitHub 상태
+# 15. 인수인계
 
-현재 프로젝트 운영에 GitHub가 필요하지 않습니다.
-
-현재 기준 ZIP에는:
+Market AI의 장기 유지보수 기준은 개발 폴더의:
 
 ```text
-.git/
+market-ai-dev\market_ai_project_handover.md
 ```
 
-이 포함되어 있지 않습니다.
+를 Source of Truth로 합니다.
 
-당분간 로컬 프로젝트로 유지하고, 안정화 후 필요할 때 새로 GitHub를 연결하면 됩니다.
-
----
-
-# 인수인계
-
-상세 작업 히스토리와 다음 QA 범위는:
-
-```text
-market_ai_project_handover.md
-```
-
-를 기준으로 합니다.
-
-새 채팅에 최신 `market-ai` ZIP을 첨부하고:
-
-```text
-인수인계
-```
-
-라고 입력하면, 먼저 인수인계 문서를 읽고 **작업을 자동 시작하지 않은 상태에서** 다음 작업을 안내해야 합니다.
-
-Bridge 2차 수정본 QA는 **58/58 PASS**, AUTO 휴장일/만기/야간장 경계값 QA는 **53/53 PASS**했고, 주간 `FC_R` 실증과 Signal v7 장전·장중·장마감/휴장 phase QA, checkpoint 유효가중치, 대시보드 endpoint 실패 격리까지 확인했습니다.
-
-현재 필수 후속 작업은 없습니다. 새 채팅에서는 최신 ZIP과 인수인계 문서를 Source of Truth로 확인한 뒤 사용자의 새 요청부터 진행합니다. OpenAI live API QA와 CMEH_R 교차검증은 선택 항목입니다.
-
-## 통합 로컬 실행
-
-평소에는 `market-ai` 폴더에서 별도 BAT를 실행하지 않습니다. 형제 폴더인 투자 대시보드의 `start-local-server.pyw`가 시스템 트레이에서 로컬 스위트를 관리합니다. 런타임 순서는 `eFriend Expert → KIS Bridge → Market AI API(:8001) → Dashboard(:8000)`이며, eFriend 확인 실패 시 잔존 Bridge까지 종료하고 시작을 중단합니다. 최초 실행에서 Market AI 핵심 Python 패키지가 없으면 자동으로 `requirements.txt`를 설치합니다. OpenAI 기능은 선택 사항이며 기본 `requirements.txt`에는 포함되지 않습니다. 나중에 OpenAI 기능을 사용할 때만 `pip install -r requirements-openai.txt`를 실행합니다.
+새 작업에서는 최신 개발 소스와 handover를 먼저 확인한 뒤 사용자의 현재 요청부터 진행합니다.
