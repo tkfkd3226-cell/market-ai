@@ -1,5 +1,50 @@
 # Market AI
 
+<!-- PYTHON_FREE_LOCAL_SUITE_START -->
+## Python-free Local Suite 운영
+
+Windows의 일반 실행 진입점은 `InvestmentLocalSuite.exe`다. 대상 PC에는 별도의 Python, pip, venv 설치가 필요하지 않는다.
+
+실행 순서:
+
+```text
+InvestmentLocalSuite.exe
+→ eFriend Expert
+→ 자동 로그인 / 인증서 선택
+→ KisKospi200Bridge.exe
+→ MarketAI.exe
+→ Dashboard embedded HTTP (:8000)
+→ 브라우저 / 트레이
+```
+
+Market AI API는 `MarketAI.exe`가 `127.0.0.1:8001`에서 제공한다. Python 런타임과 Python 패키지는 PyInstaller 빌드 결과에 포함되며 외부 Python 설치를 호출하지 않는다.
+
+런타임에서 외부로 유지하는 항목:
+
+```text
+MarketAI.exe
+_internal/
+KisKospi200Bridge.exe
+InvestmentLocalSuite.ico
+.env
+db/market_signal.db
+../investment-dashboard/
+```
+
+`.env`와 `db/market_signal.db`는 빌드 산출물에 넣지 않는다. 특히 `db/market_signal.db`는 누적 운영 데이터이므로 빌드·패치·배포 정리 과정에서 삭제하거나 초기화하지 않는다.
+
+개발/재빌드:
+
+- Market AI Python 백엔드 수정 → `build-market-ai.ps1` 실행 → `MarketAI.exe` + `_internal` 갱신
+- Local Suite UI·자동로그인·실행순서 수정 → `build-investment-local-suite.ps1` 실행 → `InvestmentLocalSuite.exe` 갱신
+- Dashboard HTML/CSS/JS 수정 → EXE 재빌드 불필요
+- `.env` 설정 및 SQLite 데이터 변경 → EXE 재빌드 불필요
+
+`start-local-server.pyw`와 `start-local-server.pyw.phase1.bak`은 최종 대상 PC의 일반 실행에는 필요하지 않지만 **개발 저장소에서는 런처 재빌드를 위해 보존한다**.
+
+2026-09-01 No-Python QA에서 Python PATH/환경변수를 차단하고 `python.exe`, `pythonw.exe`, `py.exe`가 탐색되지 않는 상태에서도 Market AI health 200, Dashboard 200 및 신규 Python 프로세스 없음이 확인되었다.
+<!-- PYTHON_FREE_LOCAL_SUITE_END -->
+
 로컬 PC에서 시장 데이터, 뉴스, 실제 KOSPI200 선물, Signal Engine, Backtest, Calibration을 통합해 **AI Market Signal**을 생성하는 프로젝트입니다.
 
 현재 기준은 **Market AI 1~14차 + KIS eFriend Expert KOSPI200 Futures Bridge 2차 + 투자 대시보드 Front↔Backend 통합 QA**까지 완료된 상태입니다.

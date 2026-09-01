@@ -1,10 +1,19 @@
+from __future__ import annotations
+
+import os
 from pathlib import Path
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
+
 DB_DIR = Path(__file__).resolve().parent
-DB_PATH = DB_DIR / "market_signal.db"
+_db_path_override = os.environ.get("MARKET_AI_DB_PATH", "").strip()
+DB_PATH = (
+    Path(_db_path_override).expanduser().resolve()
+    if _db_path_override
+    else DB_DIR / "market_signal.db"
+)
 DATABASE_URL = f"sqlite:///{DB_PATH.as_posix()}"
 
 
