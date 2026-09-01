@@ -1,7 +1,7 @@
 ==========================================================
   Investment Dashboard + Market AI Local Suite
 ==========================================================
-Started   : 2026-09-01 16:08:09
+Started   : 2026-09-01 16:53:12
 Log file  : C:\Users\KSIDC08\OneDrive\Documents\GitHub\market-ai\start-local-server.log
 [OK]    Investment Local Suite tray icon registered.
 [OK]    Local Suite tray image loaded: InvestmentLocalSuite.ico
@@ -27,164 +27,62 @@ Credential: eFriend auto-login configured (Windows Credential Manager)
 [OK]    KIS KOSPI200 Bridge process ready.
         Market AI API will start next; Bridge AUTO route retries until API is ready.
 [START] Market AI API :8001 (MarketAI.exe)
-INFO:     Started server process [112552]
+INFO:     Started server process [126364]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
-INFO:     127.0.0.1:9291 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14140 - "GET /api/health HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:14145 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14145 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14144 - "GET /api/health HTTP/1.1" 200 OK
 [OK]    Market AI API ready (standalone EXE).
 [START] Investment Dashboard :8000 (embedded HTTP)
-127.0.0.1 - - [01/Sep/2026 16:08:35] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:37] "GET / HTTP/1.1" 200 -
 [OK]    Investment Dashboard ready (embedded HTTP).
 
 [OK] Startup sequence complete.
      eFriend Expert -> KIS Bridge -> MarketAI.exe -> Embedded Dashboard HTTP
      Tray icon: right-click View / eFriend·Bridge·서버 종료
-INFO:     127.0.0.1:9308 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9308 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-127.0.0.1 - - [01/Sep/2026 16:08:36] "GET /css/common.css?v=1788246516660 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:36] "GET /css/tablet.css?v=1788246516660 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:36] "GET /css/mobile.css?v=1788246516660 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:36] "GET /css/special.css?v=1788246516660 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:36] "GET /css/interaction.css?v=1788246516660 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:36] "GET /css/print.css?v=1788246516660 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:37] "GET /js/dashboard-app.js?v=1788246516985 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:37] "GET /js/dashboard-market-ai.js?v=1788246516985 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:37] "GET /js/dashboard-core.js?v=1788246516985 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:37] "GET /js/dashboard-ui-common.js?v=1788246516985 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:37] "GET /js/dashboard-modal.js?v=1788246516985 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:37] "GET /js/dashboard-ui.js?v=1788246516985 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:37] "GET /js/dashboard-pension.js?v=1788246516985 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:37] "GET /js/dashboard-charts.js?v=1788246516985 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:37] "GET /js/dashboard-pension-editor.js?v=1788246516985 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:38] "GET /data/portfolio.json?ts=1788246517871 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:38] "GET /data/prices.json?ts=1788246517871 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:38] "GET /data/account1_daily_snapshots.json?ts=1788246517871 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:38] "GET /data/pension_cash_snapshots.json?ts=1788246517871 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:38] "GET /data/performance_snapshots.json?ts=1788246517871 HTTP/1.1" 200 -
-127.0.0.1 - - [01/Sep/2026 16:08:38] "GET /data/pension_contributions.json?ts=1788246517871 HTTP/1.1" 200 -
-INFO:     127.0.0.1:5127 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6554 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:8921 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
-127.0.0.1 - - [01/Sep/2026 16:08:38] "GET /data/pension_trades.json?ts=1788246517872 HTTP/1.1" 200 -
-INFO:     127.0.0.1:4405 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:4405 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:4409 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:4408 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:4408 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:4411 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:4411 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:4412 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:4412 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1329 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1329 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1329 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1329 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1329 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1329 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5257 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5257 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5257 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5257 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5260 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5260 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5260 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5260 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9840 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9840 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13297 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:3417 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
-INFO:     127.0.0.1:3668 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9869 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9869 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9872 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9873 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9872 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9878 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9878 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9879 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9879 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9881 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9882 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9881 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9883 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9883 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9885 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9885 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:3385 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13920 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1428 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6605 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6605 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6606 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6606 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6607 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6608 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6607 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6609 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6609 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6610 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6610 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6613 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6613 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:7414 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:7414 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6574 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6574 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6574 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13933 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13934 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13933 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13933 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13933 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13936 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13936 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13937 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13937 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13937 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13937 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13937 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13937 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13940 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13940 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13941 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13941 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13942 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13942 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13943 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13943 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5133 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13904 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5133 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5142 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5142 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5173 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5174 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5173 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5175 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5175 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5176 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5176 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5177 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5178 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5177 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5177 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5177 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5182 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5181 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5182 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1252 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1252 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1282 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1283 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1282 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:14758 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:14758 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:14765 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:14765 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:14768 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:14768 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:14768 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:14768 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:14768 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
-INFO:     127.0.0.1:14768 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+127.0.0.1 - - [01/Sep/2026 16:53:38] "GET /css/common.css?v=1788249218563 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:38] "GET /css/tablet.css?v=1788249218563 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:38] "GET /css/special.css?v=1788249218563 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:38] "GET /css/interaction.css?v=1788249218563 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:38] "GET /css/mobile.css?v=1788249218563 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:38] "GET /css/print.css?v=1788249218563 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:39] "GET /js/dashboard-app.js?v=1788249218881 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:39] "GET /js/dashboard-market-ai.js?v=1788249218881 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:39] "GET /js/dashboard-core.js?v=1788249218881 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:39] "GET /js/dashboard-modal.js?v=1788249218881 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:39] "GET /js/dashboard-charts.js?v=1788249218881 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:39] "GET /js/dashboard-ui-common.js?v=1788249218881 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:39] "GET /js/dashboard-ui.js?v=1788249218881 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:39] "GET /js/dashboard-pension.js?v=1788249218881 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:39] "GET /js/dashboard-pension-editor.js?v=1788249218881 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:40] "GET /data/portfolio.json?ts=1788249219777 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:40] "GET /data/prices.json?ts=1788249219778 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:40] "GET /data/performance_snapshots.json?ts=1788249219778 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:40] "GET /data/account1_daily_snapshots.json?ts=1788249219778 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:40] "GET /data/pension_contributions.json?ts=1788249219778 HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:53:40] "GET /data/pension_cash_snapshots.json?ts=1788249219778 HTTP/1.1" 200 -
+INFO:     127.0.0.1:13789 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13984 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3906 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+127.0.0.1 - - [01/Sep/2026 16:53:40] "GET /data/pension_trades.json?ts=1788249219778 HTTP/1.1" 200 -
+INFO:     127.0.0.1:14145 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14145 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4620 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4620 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4620 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4620 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2527 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2527 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2527 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2527 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2530 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2530 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2532 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2532 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2533 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2533 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2534 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2534 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
