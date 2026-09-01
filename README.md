@@ -56,20 +56,21 @@ http://127.0.0.1:8001
 
 ```text
 market-ai\
-├─ InvestmentLocalSuite.exe
-├─ _suite_internal\
-├─ MarketAI.exe
 ├─ _internal\
-├─ KisKospi200Bridge.exe
-├─ KisKospi200Bridge.exe.config
-├─ AxInterop.ITGExpertCtlLib.dll
-├─ Interop.ITGExpertCtlLib.dll
-├─ InvestmentLocalSuite.ico
-├─ README.md
+├─ _suite_internal\
 ├─ db\
 │  └─ market_signal.db
-└─ tools\
-   └─ close-efriend-tray.ps1
+├─ tools\
+│  └─ close-efriend-tray.ps1
+├─ .gitignore
+├─ AxInterop.ITGExpertCtlLib.dll
+├─ Interop.ITGExpertCtlLib.dll
+├─ InvestmentLocalSuite.exe
+├─ InvestmentLocalSuite.ico
+├─ KisKospi200Bridge.exe
+├─ KisKospi200Bridge.exe.config
+├─ MarketAI.exe
+└─ README.md
 ```
 
 `.env`는 **기본 실행에 필수 파일이 아닙니다.** OpenAI 뉴스 분석이나 운영 override 등 환경설정이 실제로 필요한 경우에만 외부 파일로 둘 수 있습니다.
@@ -78,31 +79,42 @@ market-ai\
 
 ```text
 market-ai-dev\
-├─ app.py
-├─ config.py
-├─ run_market_ai.py
-├─ start-local-server.pyw
-├─ build-market-ai.ps1
-├─ build-investment-local-suite.ps1
-├─ Sign-InvestmentLocalSuite.ps1
-├─ build-kis-bridge-release.bat
-├─ requirements.txt
-├─ requirements-openai.txt
+├─ _internal\
 ├─ ai\
 ├─ backtest\
 ├─ bridges\
 ├─ calibration\
 ├─ collectors\
 ├─ db\
+├─ eFriendQA\
+├─ KisKospi200Bridge\
 ├─ market\
 ├─ news\
 ├─ signals\
-├─ KisKospi200Bridge\
-├─ eFriendQA\
-└─ market_ai_project_handover.md
+├─ tools\
+├─ .env.example
+├─ .gitignore
+├─ app.py
+├─ AxInterop.ITGExpertCtlLib.dll
+├─ build-investment-local-suite.ps1
+├─ build-kis-bridge-release.bat
+├─ build-market-ai.ps1
+├─ config.py
+├─ Interop.ITGExpertCtlLib.dll
+├─ InvestmentLocalSuite.ico
+├─ KisKospi200Bridge.exe
+├─ KisKospi200Bridge.exe.config
+├─ KisKospi200Bridge.sln
+├─ market_ai_project_handover.md
+├─ MarketAI.exe
+├─ requirements.txt
+├─ requirements-openai.txt
+├─ run_market_ai.py
+├─ Sign-InvestmentLocalSuite.ps1
+└─ start-local-server.pyw
 ```
 
-빌드 산출물은 필요 시 다시 만들 수 있지만 개발 소스와 빌드 스크립트는 `market-ai-dev`에서 보존합니다.
+개발 폴더에는 소스·빌드 스크립트와 함께 배포 직전 확인용 빌드 산출물(`MarketAI.exe + _internal/`, KIS Bridge EXE/config/interop DLL)이 존재할 수 있습니다. 이 산출물은 재생성 가능하며, 개발 소스와 빌드 스크립트를 Source of Truth로 보존합니다.
 
 ---
 
