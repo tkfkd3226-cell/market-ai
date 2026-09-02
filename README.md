@@ -1,6 +1,6 @@
 # Market AI
 
-로컬 Windows PC에서 시장 데이터, 실제 KOSPI200 선물, Signal Engine, Backtest, Calibration을 통합해 **AI Market Signal**을 생성하고 투자 대시보드에 제공하는 프로젝트입니다.
+로컬 Windows PC에서 시장 데이터, eFriend 실시간 KOSPI·삼성전자·SK하이닉스, 실제 KOSPI200 선물, Signal Engine, Backtest, Calibration을 통합해 **AI Market Signal**을 생성하고 투자 대시보드에 제공하는 프로젝트입니다.
 
 > 자동 주문 시스템이 아닙니다.  
 > 주문 API, 계좌번호, 계좌 비밀번호를 사용하지 않습니다.
@@ -19,7 +19,7 @@ Desktop shortcut
 → InvestmentLocalSuite.exe + _suite_internal/
 → eFriend Expert
 → 자동 로그인 / 인증서 선택
-→ KisKospi200Bridge.exe
+→ KisKospi200Bridge.exe (KIS eFriend Market Bridge · x86)
 → MarketAI.exe + _internal/
 → FastAPI 127.0.0.1:8001
 → Dashboard embedded HTTP :8000
@@ -45,6 +45,24 @@ http://127.0.0.1:8001
 ```
 
 외부 Python 실행 파일이나 `python -m uvicorn`, `python -m http.server`, runtime pip 설치에는 의존하지 않습니다.
+
+시스템 트레이는 `InvestmentLocalSuite.exe` 하나로 통합합니다.
+
+```text
+Local Suite 상태/로그
+KIS eFriend Market Bridge
+eFriend 자동 로그인 설정
+-------------------------
+서버·Bridge 종료
+서버·Bridge·eFriend 종료
+```
+
+- Bridge는 별도 x86/ActiveX 프로세스로 유지하지만 자체 트레이 아이콘은 표시하지 않습니다.
+- `KIS eFriend Market Bridge` 메뉴에서 숨겨진 4종 모니터 창을 열 수 있습니다.
+- Bridge 창의 `X`/최소화는 프로세스 종료가 아니라 화면 숨김입니다.
+- `서버·Bridge 종료`는 eFriend를 유지합니다.
+- `서버·Bridge·eFriend 종료`는 서버 → Bridge → eFriend 순서로 전체 종료합니다.
+- eFriend 자동 로그인 정보는 Windows Credential Manager에 저장하며 트레이 메뉴에서 설정/삭제합니다.
 
 ---
 
@@ -144,6 +162,8 @@ start-local-server.pyw 수정
 
 ### KIS Bridge 수정
 
+실행 파일명 `KisKospi200Bridge.exe`는 호환성을 위해 유지하지만, 현재 역할은 K200뿐 아니라 KOSPI·삼성전자·SK하이닉스까지 수신하는 **KIS eFriend Market Bridge**입니다.
+
 ```text
 KisKospi200Bridge source 수정
 → build-kis-bridge-release.bat
@@ -162,7 +182,7 @@ investment-dashboard의 HTML/CSS/JS 수정
 
 # 2. 외부 Dashboard에서 Market AI 사용
 
-Market AI 계산, eFriend, 인증서, KIS Bridge, SQLite는 계속 로컬 PC에서 동작합니다.
+Market AI 계산, eFriend, 인증서, KIS eFriend Market Bridge, SQLite는 계속 로컬 PC에서 동작합니다.
 
 외부 대시보드는 Tailscale Serve를 통해 **API 결과만** 조회합니다.
 
@@ -245,6 +265,8 @@ SOX
 NQ100 선물
 ```
 
+KOSPI는 `INDEX:KOSPI` snapshot의 실제 `source`를 기준으로 툴팁에 `KIS eFriend KOSPI 실시간` 또는 Yahoo fallback을 표시합니다. provider 명칭을 Yahoo로 고정하지 않습니다.
+
 SOX 화면 표시도 현재 `INDEX:SOX` 현물지수를 사용합니다. `FUTURES:SOX`는 현재 Dashboard Market AI 표시나 Signal weight의 대체값으로 사용하지 않습니다.
 
 Dashboard는 선택한 과거 투자 기준일과 별개로 **현재 시점의 Market AI**를 표시합니다.
@@ -262,10 +284,13 @@ OpenAI 뉴스 분석 코드                ✅ 선택 기능
 Signal Engine                       ✅ stage6_rule_v7
 Backtest                            ✅
 Calibration                         ✅
-eFriend Expert C# Bridge            ✅
-KOSPI200 주간 FC_R                  ✅
-KOSPI200 야간 CMEC_R                ✅
-실제 KIS 선물 → Signal Engine       ✅
+eFriend Expert C# Market Bridge     ✅
+KOSPI JUC_R 실시간                   ✅
+삼성전자·SK하이닉스 SC_R 실시간       ✅
+국내 현물 Yahoo 장애 fallback         ✅
+KOSPI200 주간 FC_R                   ✅
+KOSPI200 야간 CMEC_R                 ✅
+실제 KIS 선물 → Signal Engine        ✅
 KOSPI200 근월물 AUTO rollover       ✅
 KRX 휴장일/session 정책             ✅
 Dashboard endpoint 실패 격리         ✅
@@ -274,6 +299,9 @@ Dashboard 원격 Tailscale 조회        ✅
 GitHub Pages CORS 허용               ✅
 Python-free target runtime           ✅
 External Python process 불필요       ✅
+Local Suite 단일 트레이              ✅
+Bridge monitor Local Suite에서 열기   ✅
+서버·Bridge / 전체 종료 분리          ✅
 OpenAI 실제 API live QA              ⏸ 선택 기능
 ```
 
@@ -328,9 +356,17 @@ DB schema/data migration이 필요한 경우에도 기존 운영 데이터 보�
 
 ---
 
-# 7. KIS eFriend KOSPI200 Futures Bridge
+# 7. KIS eFriend Market Bridge
 
-Bridge는 KIS eFriend Expert의 실제 KOSPI200 선물 real-time 데이터를 Market AI에 전달합니다.
+Bridge는 KIS eFriend Expert의 실제 KOSPI200 선물과 국내 현물 3종 real-time 데이터를 Market AI에 전달합니다.
+
+실행 파일명은 호환성을 위해 계속:
+
+```text
+KisKospi200Bridge.exe
+```
+
+를 사용하지만 UI/운영 명칭은 **KIS eFriend Market Bridge**입니다.
 
 환경:
 
@@ -339,20 +375,25 @@ Bridge는 KIS eFriend Expert의 실제 KOSPI200 선물 real-time 데이터를 Ma
 x86
 ```
 
-주요 실시간 서비스:
+현재 실시간 service / canonical symbol:
 
 ```text
-주간  FC_R
-야간  CMEC_R
+KOSPI          JUC_R   / 0001    → INDEX:KOSPI
+삼성전자       SC_R    / 005930  → KRX:005930
+SK하이닉스     SC_R    / 000660  → KRX:000660
+KOSPI200 주간  FC_R              → FUTURES:KOSPI200
+KOSPI200 야간  CMEC_R            → FUTURES:KOSPI200
 ```
 
-canonical symbol:
+국내 현물 eFriend source 형식:
 
 ```text
-FUTURES:KOSPI200
+kis-efriend:JUC_R:0001
+kis-efriend:SC_R:005930
+kis-efriend:SC_R:000660
 ```
 
-실제 source 형식:
+KOSPI200 선물 source 형식:
 
 ```text
 kis-efriend:day:FC_R:<instrument_code>
@@ -361,12 +402,13 @@ kis-efriend:night:CMEC_R:<instrument_code>
 
 `<instrument_code>`는 AUTO 근월물 정책에 따라 달라지므로 특정 월물 코드를 문서 상수처럼 고정하지 않습니다.
 
-Bridge는 서버의 route 정책을 기준으로 현재 근월물과 `FC_R / CMEC_R / CLOSED` 상태를 따릅니다.
+Bridge는 KOSPI200 선물에 대해서 서버의 route 정책을 기준으로 현재 근월물과 `FC_R / CMEC_R / CLOSED` 상태를 따릅니다. KOSPI·삼성전자·SK하이닉스는 위 service/code 조합을 독립 구독합니다.
 
 주요 Bridge API:
 
 ```text
 POST /api/bridge/kis-efriend/tick
+POST /api/bridge/kis-efriend/market-tick
 POST /api/bridge/kis-efriend/heartbeat
 GET  /api/bridge/kis-efriend/status
 GET  /api/bridge/kis-efriend/contract
@@ -376,6 +418,22 @@ GET  /api/bridge/kis-efriend/route-code
 ```
 
 heartbeat와 실제 quote freshness는 서로 다른 의미입니다. heartbeat가 정상이어도 오래된 quote를 fresh한 현재가로 간주하지 않습니다.
+
+## 7.1 국내 현물 provider 우선순위
+
+```text
+KRX 정규장 중
+eFriend 정상 → eFriend 우선
+eFriend stale(기본 90초, `MARKET_AI_KIS_FALLBACK_AFTER_SECONDS` 초과) → Yahoo/yfinance 장애 fallback
+
+KRX 정규장 종료 후
+마지막 eFriend snapshot 유지
+→ 단순히 90초가 지났다는 이유로 Yahoo가 덮어쓰지 않음
+```
+
+현재 설치된 eFriend Expert Viewer에서는 NXT/ATS 현물 실시간 TR이 확인되지 않았습니다. 따라서 `SC_R`은 현재 KRX 정규장 실시간 입력으로 취급하며, NXT 체결까지 eFriend가 통합 제공한다고 가정하지 않습니다.
+
+Bridge 자체 트레이 아이콘은 사용하지 않습니다. `InvestmentLocalSuite.exe` 트레이의 `KIS eFriend Market Bridge` 메뉴로 4종 모니터를 열고, 창의 `X`/최소화는 화면만 숨깁니다.
 
 ---
 
@@ -550,6 +608,8 @@ KisKospi200Bridge.exe
 efexpertmain.exe
 ```
 
+시스템 트레이 아이콘은 Investment Local Suite 하나만 표시되는 것이 정상입니다.
+
 기본 로컬 확인:
 
 ```text
@@ -563,7 +623,21 @@ http://localhost:8000/
 https://node.tail60a98e.ts.net/api/health
 ```
 
-Local Suite의 통합 종료 기능은 Dashboard embedded HTTP, MarketAI, KIS Bridge, eFriend Expert를 정리하는 현재 shutdown contract를 유지합니다.
+Local Suite 종료 contract:
+
+```text
+서버·Bridge 종료
+→ Dashboard embedded HTTP / MarketAI 종료
+→ KIS eFriend Market Bridge 종료
+→ eFriend Expert 유지
+
+서버·Bridge·eFriend 종료
+→ Dashboard embedded HTTP / MarketAI 종료
+→ KIS eFriend Market Bridge 종료
+→ eFriend Expert 종료
+```
+
+종료 메뉴명은 실제 종료 순서와 일치시킵니다.
 
 ---
 
