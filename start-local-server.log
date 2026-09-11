@@ -1,0 +1,225 @@
+==========================================================
+  Investment Dashboard + Market AI Local Suite
+==========================================================
+Started   : 2026-09-11 19:13:02
+Log file  : C:\Users\KSIDC08\OneDrive\Documents\GitHub\market-ai\start-local-server.log
+[OK]    Investment Local Suite tray icon registered.
+[OK]    Local Suite tray image loaded: InvestmentLocalSuite.ico
+[OK]    Launcher administrator token confirmed (single UAC mode).
+Dashboard : http://localhost:8000/
+Dashboard Dir: C:\Users\KSIDC08\OneDrive\Documents\GitHub\investment-dashboard
+Market AI : http://127.0.0.1:8001/
+Market AI Dir: C:\Users\KSIDC08\OneDrive\Documents\GitHub\market-ai
+Runtime   : MarketAI.exe + embedded Dashboard HTTP (external Python not used)
+eFriend   : C:\eFriend Expert\efriendexpert\efriendexpert.exe
+Credential: eFriend auto-login configured (Windows Credential Manager)
+
+[OK]    eFriend Expert already logged in (efexpertmain.exe); launch skipped.
+[OK]    KIS Bridge prebuilt Release/x86 runtime ready.
+[OK]    Market AI standalone runtime ready (external Python not used).
+[START] KIS eFriend Market Bridge
+        관리자 권한 런처에서 실행하므로 추가 UAC는 표시되지 않습니다.
+[OK]    KIS eFriend Market Bridge process ready.
+        Market AI API will start next; Bridge AUTO route retries until API is ready.
+[START] Market AI API :8001 (MarketAI.exe)
+INFO:     Started server process [31320]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
+INFO:     100.127.114.19:0 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=82741235-5d06-43df-b8a0-30f8aacd1608 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6520 - "GET /api/health HTTP/1.1" 200 OK
+[OK]    Market AI API ready (standalone EXE).
+[OK]    Tailscale Serve already configured for Market AI :8001.
+INFO:     100.127.114.19:0 - "GET /api/health HTTP/1.1" 200 OK
+[OK]    Tailscale remote Market AI ready: https://node.tail60a98e.ts.net
+[START] Investment Dashboard :8000 (embedded HTTP)
+127.0.0.1 - - [11/Sep/2026 19:13:12] "GET / HTTP/1.1" 200 -
+[OK]    Investment Dashboard ready (embedded HTTP).
+
+[OK] Startup sequence complete.
+     eFriend Expert -> KIS Bridge -> MarketAI.exe -> Tailscale Remote check -> Embedded Dashboard HTTP
+     Remote   : Tailscale Remote ready
+     Tray icon: right-click Local Suite 상태/로그 / KIS eFriend Market Bridge / 종료
+INFO:     127.0.0.1:7158 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7158 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+127.0.0.1 - - [11/Sep/2026 19:13:14] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [11/Sep/2026 19:13:14] "GET /css/common.css?v=1789121594500 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:14] "GET /css/tablet.css?v=1789121594500 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:14] "GET /css/mobile.css?v=1789121594500 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:14] "GET /css/interaction.css?v=1789121594500 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:14] "GET /css/print.css?v=1789121594500 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:14] "GET /css/special.css?v=1789121594500 HTTP/1.1" 200 -
+INFO:     127.0.0.1:7158 - "POST /api/bridge/kis-efriend/tick HTTP/1.1" 200 OK
+127.0.0.1 - - [11/Sep/2026 19:13:15] "GET /js/dashboard-app.js?v=1789121594822 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:15] "GET /js/dashboard-market-ai.js?v=1789121594822 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:15] "GET /js/dashboard-core.js?v=1789121594822 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:15] "GET /js/dashboard-modal.js?v=1789121594822 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:15] "GET /js/dashboard-ui-common.js?v=1789121594822 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:15] "GET /js/dashboard-ui.js?v=1789121594822 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:15] "GET /js/dashboard-charts.js?v=1789121594822 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:15] "GET /js/dashboard-pension.js?v=1789121594822 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:15] "GET /js/dashboard-live-valuation.js?v=1789121594822 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:15] "GET /js/dashboard-market-ai-client.js?v=1789121594822 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:15] "GET /js/dashboard-pension-editor.js?v=1789121594822 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:15] "GET /js/kodex-leverage-schema.js?v=1789121594822 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:16] "GET /data/portfolio.json?ts=1789121595772 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:16] "GET /data/prices.json?ts=1789121595772 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:16] "GET /data/account1_daily_snapshots.json?ts=1789121595772 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:16] "GET /data/pension_contributions.json?ts=1789121595772 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:16] "GET /data/pension_cash_snapshots.json?ts=1789121595772 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:16] "GET /data/performance_snapshots.json?ts=1789121595772 HTTP/1.1" 200 -
+INFO:     127.0.0.1:10177 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2707 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12421 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+127.0.0.1 - - [11/Sep/2026 19:13:16] "GET /data/pension_trades.json?ts=1789121595772 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:16] "GET /data/kodex_leverage_trades.json?ts=1789121595773 HTTP/1.1" 200 -
+INFO:     127.0.0.1:12421 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=e3893c47-a2f9-4705-8e1c-57dc276d3c3f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12421 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10177 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=e3893c47-a2f9-4705-8e1c-57dc276d3c3f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2707 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6671 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12421 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2707 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6671 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=e3893c47-a2f9-4705-8e1c-57dc276d3c3f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10177 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2707 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6671 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10177 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10177 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=9e334a13-139a-4ebd-9523-6352218f9dfa HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2707 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6671 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10177 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10177 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=9e334a13-139a-4ebd-9523-6352218f9dfa HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7158 - "GET /api/bridge/kis-efriend/quote-universe HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10177 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10177 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2707 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=e3893c47-a2f9-4705-8e1c-57dc276d3c3f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6671 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9977 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9977 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9977 - "POST /api/bridge/kis-efriend/tick HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7887 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9976 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7887 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7887 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=e3893c47-a2f9-4705-8e1c-57dc276d3c3f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9977 - "GET /api/bridge/kis-efriend/quote-universe HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12899 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9977 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+127.0.0.1 - - [11/Sep/2026 19:13:32] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [11/Sep/2026 19:13:32] "GET /css/common.css?v=1789121612755 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:32] "GET /css/tablet.css?v=1789121612755 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:33] "GET /css/special.css?v=1789121612755 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:33] "GET /css/print.css?v=1789121612755 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:33] "GET /css/interaction.css?v=1789121612755 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:33] "GET /css/mobile.css?v=1789121612755 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:33] "GET /js/dashboard-app.js?v=1789121613097 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:33] "GET /js/dashboard-market-ai.js?v=1789121613097 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:33] "GET /js/dashboard-core.js?v=1789121613097 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:33] "GET /js/dashboard-ui-common.js?v=1789121613097 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:33] "GET /js/dashboard-modal.js?v=1789121613097 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:33] "GET /js/dashboard-pension.js?v=1789121613097 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:33] "GET /js/dashboard-charts.js?v=1789121613097 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:33] "GET /js/dashboard-ui.js?v=1789121613097 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:33] "GET /js/dashboard-live-valuation.js?v=1789121613097 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:34] "GET /js/dashboard-pension-editor.js?v=1789121613097 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:34] "GET /js/kodex-leverage-schema.js?v=1789121613097 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:34] "GET /js/dashboard-market-ai-client.js?v=1789121613097 HTTP/1.1" 200 -
+INFO:     127.0.0.1:12898 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12898 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12898 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+127.0.0.1 - - [11/Sep/2026 19:13:34] "GET /data/portfolio.json?ts=1789121614064 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:34] "GET /data/account1_daily_snapshots.json?ts=1789121614065 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:34] "GET /data/pension_contributions.json?ts=1789121614065 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:34] "GET /data/performance_snapshots.json?ts=1789121614065 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:34] "GET /data/pension_cash_snapshots.json?ts=1789121614065 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:34] "GET /data/prices.json?ts=1789121614065 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:34] "GET /data/pension_trades.json?ts=1789121614065 HTTP/1.1" 200 -
+127.0.0.1 - - [11/Sep/2026 19:13:34] "GET /data/kodex_leverage_trades.json?ts=1789121614065 HTTP/1.1" 200 -
+INFO:     127.0.0.1:12898 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=e3893c47-a2f9-4705-8e1c-57dc276d3c3f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14478 - "POST /api/bridge/kis-efriend/tick HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14478 - "GET /api/bridge/kis-efriend/quote-universe HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14479 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14478 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1317 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10616 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1317 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12800 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12800 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1317 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=e3893c47-a2f9-4705-8e1c-57dc276d3c3f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1446 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1447 - "GET /api/bridge/kis-efriend/quote-universe HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1446 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1443 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1443 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1443 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1443 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=e3893c47-a2f9-4705-8e1c-57dc276d3c3f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6894 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6895 - "GET /api/bridge/kis-efriend/quote-universe HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6896 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6894 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6894 - "POST /api/bridge/kis-efriend/tick HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6893 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6893 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8927 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6894 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6894 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8927 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=e3893c47-a2f9-4705-8e1c-57dc276d3c3f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6894 - "GET /api/bridge/kis-efriend/quote-universe HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8125 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6894 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6894 - "POST /api/bridge/kis-efriend/tick HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8124 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8124 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8124 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8124 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=e3893c47-a2f9-4705-8e1c-57dc276d3c3f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13013 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13013 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13013 - "POST /api/bridge/kis-efriend/tick HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3930 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12984 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3930 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13013 - "GET /api/bridge/kis-efriend/quote-universe HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3930 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=e3893c47-a2f9-4705-8e1c-57dc276d3c3f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13013 - "POST /api/bridge/kis-efriend/tick HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13013 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13013 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6359 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6359 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6359 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13013 - "GET /api/bridge/kis-efriend/quote-universe HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6359 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=e3893c47-a2f9-4705-8e1c-57dc276d3c3f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13013 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13013 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3855 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13205 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3855 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3855 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=e3893c47-a2f9-4705-8e1c-57dc276d3c3f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14013 - "POST /api/bridge/kis-efriend/tick HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14013 - "GET /api/bridge/kis-efriend/quote-universe HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14015 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14016 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14013 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14012 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14012 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14012 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14012 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=e3893c47-a2f9-4705-8e1c-57dc276d3c3f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5789 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5790 - "GET /api/bridge/kis-efriend/quote-universe HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5789 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5789 - "POST /api/bridge/kis-efriend/tick HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10027 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5787 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10027 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10027 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=e3893c47-a2f9-4705-8e1c-57dc276d3c3f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9102 - "GET /api/bridge/kis-efriend/quote-universe HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9104 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9103 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9104 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9104 - "POST /api/bridge/kis-efriend/tick HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11476 - "GET /api/signal/latest?include_details=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11476 - "GET /api/market-data/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11476 - "GET /api/bridge/kis-efriend/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11476 - "GET /api/market-data/krx-quotes?tickers=000660%2C005380%2C005930%2C009150%2C0163Y0%2C069500%2C278530%2C395160%2C445290%2C448330&client_id=e3893c47-a2f9-4705-8e1c-57dc276d3c3f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6615 - "GET /api/bridge/kis-efriend/route-code HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6614 - "GET /api/bridge/kis-efriend/quote-universe HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6615 - "POST /api/bridge/kis-efriend/heartbeat HTTP/1.1" 200 OK
