@@ -135,6 +135,7 @@ market-ai-dev\
 ├─ requirements.txt
 ├─ requirements-openai.txt
 ├─ run_market_ai.py
+├─ Initialize-InvestmentLocalSuiteSigning.ps1
 ├─ Sign-InvestmentLocalSuite.ps1
 └─ start-local-server.pyw
 ```
@@ -184,6 +185,14 @@ start-local-server.log
 ## 1.3 재빌드 / 배포 계약
 
 clean dev에서 전체 runtime을 다시 만들 때는 다음 순서를 기본으로 합니다.
+
+빌드 PC에는 Python이 필요하며 `build-market-ai.ps1`가 `requirements.txt`의 Market AI 핵심 의존성과 고정 PyInstaller 버전을 설치/검증합니다. Local Suite를 처음 빌드하는 Windows 사용자 계정에서는 아래 개발용 helper를 **1회 실행**해 CurrentUser 범위의 로컬 코드서명 인증서를 준비합니다.
+
+```powershell
+.\Initialize-InvestmentLocalSuiteSigning.ps1
+```
+
+이 helper는 운영 runtime 파일이 아니라 `market-ai-dev`의 빌드 환경 provisioning 용도입니다.
 
 ```text
 1. build-market-ai.ps1
@@ -835,6 +844,8 @@ README.md
 .gitignore
 db/.gitkeep
 ```
+
+`_internal/`과 `_suite_internal/` 안의 `*.pyd`는 Python cache가 아니라 PyInstaller onedir runtime에 필요한 **Windows native extension**이므로 Git 추적 대상입니다. Runtime `.gitignore`는 `*.pyc`, `*.pyo`만 제외하고 `*.pyd`를 제외하지 않아야 합니다. 새 clone 검증 시 `git ls-files "*.pyd"` 결과가 비어 있으면 배포가 불완전한 상태입니다.
 
 반면 mutable 운영 DB는 Git에 올리지 않습니다.
 
