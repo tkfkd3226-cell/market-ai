@@ -163,6 +163,24 @@ __pycache__/
 
 ---
 
+
+### 실행 시 생성되는 로컬 runtime 파일
+
+Local Suite를 실행하면 실행폴더 root에 다음 로그가 생성될 수 있습니다.
+
+```text
+start-local-server.log
+```
+
+이 파일은 프로그램 기동과 Market AI / KIS Bridge / Dashboard / Tailscale 상태 확인을 위한 **로컬 runtime 로그**입니다.
+
+- 실행에 필요한 배포 파일이 아닙니다.
+- GitHub 추적 대상이 아닙니다.
+- 필요하면 삭제할 수 있습니다.
+- 다음 Local Suite 실행 시 다시 생성됩니다.
+- 실행 시 기존 내용을 비우고 현재 실행 로그를 기록할 수 있습니다.
+- PC 로컬 경로 등 환경별 정보가 포함될 수 있으므로 공유/배포 파일로 취급하지 않습니다.
+
 ## 1.3 재빌드 / 배포 계약
 
 clean dev에서 전체 runtime을 다시 만들 때는 다음 순서를 기본으로 합니다.

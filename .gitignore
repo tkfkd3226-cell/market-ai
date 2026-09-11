@@ -10,5 +10,6 @@ __pycache__/
 /db/market_signal.db-wal
 /db/market_signal.db-shm
 
-# Local environment / secrets
+# Local environment / runtime files
 /.env
+/start-local-server.log
