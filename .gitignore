@@ -12,6 +12,7 @@ __pycache__/
 /db/market_signal.db
 /db/market_signal.db-wal
 /db/market_signal.db-shm
+/db/dashboard_quote_universe.json
 
 # Local environment / runtime files
 /.env
