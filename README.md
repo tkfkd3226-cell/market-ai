@@ -585,7 +585,7 @@ KRX 정규장 종료 후
 
 현재 설치된 eFriend Expert Viewer에서는 NXT/ATS 현물 실시간 TR이 확인되지 않았습니다. 따라서 `SC_R`은 현재 KRX 정규장 실시간 입력으로 취급하며, NXT 체결까지 eFriend가 통합 제공한다고 가정하지 않습니다.
 
-Bridge 자체 트레이 아이콘은 사용하지 않습니다. `InvestmentLocalSuite.exe` 트레이의 `KIS eFriend Market Bridge` 메뉴로 4종 모니터를 열고, 창의 `X`/최소화는 화면만 숨깁니다.
+Bridge 자체 트레이 아이콘은 사용하지 않습니다. `InvestmentLocalSuite.exe` 트레이의 `KIS eFriend Market Bridge` 메뉴로 Bridge 모니터를 열고, 창의 `X`/최소화는 화면만 숨깁니다.
 
 ---
 

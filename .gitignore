@@ -9,3 +9,6 @@ __pycache__/
 /db/market_signal.db
 /db/market_signal.db-wal
 /db/market_signal.db-shm
+
+# Local environment / secrets
+/.env
