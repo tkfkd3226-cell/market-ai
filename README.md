@@ -1,5 +1,10 @@
 # Market AI
 
+> **문서 성격**: 이 README는 `market-ai` **운영 Runtime 저장소의 실행 · 상태 확인 · 장애 분리 · 데이터 보존 · 배포 파일 구성**을 설명합니다.  
+> Python/C#/PyInstaller 빌드 방법과 소스 수정 contract는 운영 README에 중복하지 않고 `market-ai-dev/market_ai_project_handover.md`에서 관리합니다.
+>
+> **운영 환경**: Windows + KIS eFriend Expert + x86 ActiveX Bridge를 사용하는 대상 PC입니다. 최종 runtime은 Python-free이며, 외부 Dashboard는 로컬 `127.0.0.1:8001` 또는 Tailscale Serve를 통해 API 결과만 소비합니다.
+
 로컬 Windows PC에서 시장 데이터, eFriend 실시간 KOSPI·KOSPI200 선물·동적 KRX 보유종목, Signal Engine, Backtest, Calibration을 통합해 **AI Market Signal과 보유종목 실시간 현재가**를 투자 대시보드에 제공하는 프로젝트입니다.
 
 > 자동 주문 시스템이 아닙니다.  
@@ -67,11 +72,11 @@ eFriend 자동 로그인 설정
 
 ---
 
-## 1.2 실행 폴더와 개발 폴더 분리
+## 1.2 `market-ai` 운영 폴더의 역할
 
-현재 폴더 역할은 다음과 같습니다.
+`market-ai`는 **실행·배포 전용 runtime 저장소**입니다. 운영 PC에서 Python/C# 원본을 직접 수정하거나 이 폴더를 개발 Source of Truth로 사용하지 않습니다.
 
-### 실행 전용 `market-ai`
+기본 runtime 구성:
 
 ```text
 market-ai\
@@ -81,7 +86,7 @@ market-ai\
 │  ├─ .gitkeep
 │  └─ market_signal.db        # 로컬 mutable DB, Git 제외
 ├─ tools\
-│  └─ close-efriend-tray.ps1  # dev 원본의 운영 배포본
+│  └─ close-efriend-tray.ps1
 ├─ .gitignore
 ├─ AxInterop.ITGExpertCtlLib.dll
 ├─ Interop.ITGExpertCtlLib.dll
@@ -93,170 +98,43 @@ market-ai\
 └─ README.md
 ```
 
-`.env`는 **기본 실행에 필수 파일이 아닙니다.** OpenAI 뉴스 분석이나 운영 override 등 환경설정이 실제로 필요한 경우에만 외부 파일로 둘 수 있습니다.
+운영 PC에는 `market-ai-dev` 폴더가 없어도 실행할 수 있습니다.
 
-`market_signal.db`는 GitHub에 올리지 않습니다. 대신 `db/.gitkeep`을 추적해 새 PC에서 저장소를 내려받아도 `db/` 폴더가 존재하도록 유지합니다.
+### 운영 중 생성·변경될 수 있는 파일
 
-기존 Signal / Backtest / Calibration 이력까지 다른 PC로 옮기려면 기존 PC의 `db/market_signal.db`를 별도로 복사합니다. 새 DB로 시작할 경우에는 빈 `db/` 폴더가 존재해야 합니다.
+`db/market_signal.db`는 Signal / Backtest / Calibration 누적 이력을 가진 **mutable 운영 데이터**입니다. GitHub runtime 배포 파일과 별개로 보존합니다.
 
-`tools/close-efriend-tray.ps1`의 Source of Truth는 `market-ai-dev/tools/`입니다. 해당 스크립트를 수정했을 때만 실행폴더의 `tools/`에도 같이 반영합니다.
+`.env`는 기본 실행에 필수 파일이 아닙니다. OpenAI 뉴스 분석이나 명시적 운영 override가 필요한 경우에만 외부 mutable configuration으로 둘 수 있으며 Git/공유 ZIP에 넣지 않습니다.
 
-### 개발 / 재빌드 `market-ai-dev`
-
-평상시 clean dev는 **소스 + DB의 빌드용 복사본 + 빌드/서명 도구 + 참고자료**만 유지합니다.
-
-```text
-market-ai-dev\
-├─ ai\
-├─ backtest\
-├─ bridges\
-├─ calibration\
-├─ collectors\
-├─ db\
-│  ├─ market_signal.db
-│  └─ *.py
-├─ eFriendQA\
-├─ KisKospi200Bridge\
-├─ market\
-├─ news\
-├─ signals\
-├─ tests\
-├─ tools\
-│  └─ close-efriend-tray.ps1
-├─ .env.example
-├─ app.py
-├─ build-investment-local-suite.ps1
-├─ build-kis-bridge-release.bat
-├─ build-market-ai.ps1
-├─ config.py
-├─ InvestmentLocalSuite.ico
-├─ KisKospi200Bridge.sln
-├─ market_ai_project_handover.md
-├─ requirements.txt
-├─ requirements-openai.txt
-├─ run_market_ai.py
-├─ Initialize-InvestmentLocalSuiteSigning.ps1
-├─ Sign-InvestmentLocalSuite.ps1
-└─ start-local-server.pyw
-```
-
-다음 항목은 clean dev 상시 구성요소가 아니며 빌드·테스트 시 재생성될 수 있습니다.
-
-```text
-MarketAI.exe
-_internal/
-InvestmentLocalSuite.exe
-_suite_internal/
-
-KisKospi200Bridge.exe
-KisKospi200Bridge.exe.config
-AxInterop.ITGExpertCtlLib.dll
-Interop.ITGExpertCtlLib.dll
-KisKospi200Bridge/bin/
-KisKospi200Bridge/obj/
-
-_runtime-backup/
-__pycache__/
-*.pyc
-```
-
-운영 `market-ai`에 최신 세트를 배포하고 실기 확인한 뒤에는 위 산출물을 dev에서 정리해도 됩니다. `db/market_signal.db`는 cleanup 대상이 아닙니다.
-
----
-
-
-### 실행 시 생성되는 로컬 runtime 파일
-
-Local Suite를 실행하면 실행폴더 root에 다음 로그가 생성될 수 있습니다.
+Local Suite 실행 시 root에 다음 로그가 생성될 수 있습니다.
 
 ```text
 start-local-server.log
 ```
 
-이 파일은 프로그램 기동과 Market AI / KIS Bridge / Dashboard / Tailscale 상태 확인을 위한 **로컬 runtime 로그**입니다.
+이 로그는 현재 PC의 기동·Market AI·Bridge·Dashboard·Tailscale 상태를 확인하기 위한 로컬 runtime 로그이며 배포 필수 파일이 아닙니다. 필요하면 삭제할 수 있고 다음 실행에서 다시 생성됩니다.
 
-- 실행에 필요한 배포 파일이 아닙니다.
-- GitHub 추적 대상이 아닙니다.
-- 필요하면 삭제할 수 있습니다.
-- 다음 Local Suite 실행 시 다시 생성됩니다.
-- 실행 시 기존 내용을 비우고 현재 실행 로그를 기록할 수 있습니다.
-- PC 로컬 경로 등 환경별 정보가 포함될 수 있으므로 공유/배포 파일로 취급하지 않습니다.
+## 1.3 Runtime 업데이트 / 교체 원칙
 
-## 1.3 재빌드 / 배포 계약
-
-clean dev에서 전체 runtime을 다시 만들 때는 다음 순서를 기본으로 합니다.
-
-빌드 PC에는 Python이 필요하며 `build-market-ai.ps1`가 `requirements.txt`의 Market AI 핵심 의존성과 고정 PyInstaller 버전을 설치/검증합니다. Local Suite를 처음 빌드하는 Windows 사용자 계정에서는 아래 개발용 helper를 **1회 실행**해 CurrentUser 범위의 로컬 코드서명 인증서를 준비합니다.
-
-```powershell
-.\Initialize-InvestmentLocalSuiteSigning.ps1
-```
-
-이 helper는 운영 runtime 파일이 아니라 `market-ai-dev`의 빌드 환경 provisioning 용도입니다.
+빌드와 서명은 `market-ai-dev`에서 수행하고, 운영 `market-ai`에는 **완성된 runtime 세트만** 반영합니다.
 
 ```text
-1. build-market-ai.ps1
-   → MarketAI.exe + _internal/
+Market AI backend
+→ MarketAI.exe + _internal/
 
-2. build-kis-bridge-release.bat
-   → KisKospi200Bridge.exe
-   → KisKospi200Bridge.exe.config
-   → AxInterop.ITGExpertCtlLib.dll
-   → Interop.ITGExpertCtlLib.dll
-
-3. build-investment-local-suite.ps1
-   → InvestmentLocalSuite.exe + _suite_internal/
-```
-
-`build-investment-local-suite.ps1`는 `MarketAI.exe`, `_internal/`, `KisKospi200Bridge.exe`가 먼저 존재하는지 확인하므로 clean dev에서는 위 순서를 지킵니다.
-
-### 빌드하면서 dev에 생길 수 있는 것
-
-```text
-Market AI
-→ MarketAI.exe
-→ _internal/
-
-KIS Bridge
-→ KisKospi200Bridge/bin/
-→ KisKospi200Bridge/obj/
+KIS eFriend Market Bridge
 → KisKospi200Bridge.exe
 → KisKospi200Bridge.exe.config
 → AxInterop.ITGExpertCtlLib.dll
 → Interop.ITGExpertCtlLib.dll
 
-Local Suite
-→ InvestmentLocalSuite.exe
-→ _suite_internal/
-
-공통
-→ _runtime-backup/        # 기존 dev build가 있을 때 rollback용으로 생성 가능
-→ __pycache__/ / *.pyc    # Python 실행·QA cache
-```
-
-`_runtime-backup/`은 Source of Truth가 아닙니다. 최신 빌드를 운영폴더에 배포하고 확인한 뒤 이전 dev build로 되돌릴 필요가 없으면 삭제해도 되며, 다음 빌드에서 다시 생성될 수 있습니다.
-
-### 빌드 후 `market-ai`로 넘길 세트
-
-```text
-Market AI backend
-MarketAI.exe
-_internal/
-
-KIS eFriend Market Bridge
-KisKospi200Bridge.exe
-KisKospi200Bridge.exe.config
-AxInterop.ITGExpertCtlLib.dll
-Interop.ITGExpertCtlLib.dll
-
 Investment Local Suite
-InvestmentLocalSuite.exe
-_suite_internal/
+→ InvestmentLocalSuite.exe + _suite_internal/
 ```
 
-**EXE와 support directory는 같은 빌드의 한 세트로 교체**합니다.
+EXE와 support directory/DLL은 같은 빌드 세트로 교체합니다.
 
-다음 파일은 일반 빌드 때 덮어쓰지 않습니다.
+일반 빌드 배포에서 다음 운영 자원은 덮어쓰지 않습니다.
 
 ```text
 db/market_signal.db
@@ -267,11 +145,11 @@ InvestmentLocalSuite.ico
 tools/close-efriend-tray.ps1
 ```
 
-단 `README.md`, `.gitignore`, 아이콘, `tools/close-efriend-tray.ps1` 자체를 수정한 경우에는 그 변경분만 별도로 운영폴더에 반영합니다.
+정적 지원 파일 자체가 수정된 경우에만 해당 파일을 별도로 반영합니다. 특히 dev의 `db/market_signal.db`를 운영 DB 위에 빌드 산출물처럼 복사하지 않습니다.
 
-특히 dev의 `db/market_signal.db`를 일반 빌드 산출물처럼 운영 DB 위에 복사하지 않습니다.
+운영 README는 build command, PyInstaller 임시 폴더, dev cleanup 절차를 소유하지 않습니다. 재빌드 순서와 개발 산출물 정리는 `market-ai-dev/market_ai_project_handover.md`를 기준으로 합니다.
 
-Dashboard HTML/CSS/JS 수정만 한 경우 MarketAI.exe 또는 InvestmentLocalSuite.exe 재빌드는 필요하지 않습니다.
+Dashboard HTML/CSS/JS만 수정한 경우 Market AI runtime EXE 재빌드는 필요하지 않습니다.
 
 ---
 
