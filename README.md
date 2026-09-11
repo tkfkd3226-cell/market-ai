@@ -1,7 +1,7 @@
 # Market AI
 
 > **문서 성격**: 이 README는 `market-ai` **운영 Runtime 저장소의 실행 · 상태 확인 · 장애 분리 · 데이터 보존 · 배포 파일 구성**을 설명합니다.  
-> Python/C#/PyInstaller 빌드 방법과 소스 수정 contract는 운영 README에 중복하지 않고 `market-ai-dev/market_ai_project_handover.md`에서 관리합니다.
+> Python/C#/PyInstaller의 상세 빌드·정리 contract는 `market-ai-dev/market_ai_project_handover.md`에서 관리하고, 이 README에는 운영자가 필요한 재빌드 매핑만 간단히 적습니다.
 >
 > **운영 환경**: Windows + KIS eFriend Expert + x86 ActiveX Bridge를 사용하는 대상 PC입니다. 최종 runtime은 Python-free이며, 외부 Dashboard는 로컬 `127.0.0.1:8001` 또는 Tailscale Serve를 통해 API 결과만 소비합니다.
 
@@ -64,11 +64,34 @@ eFriend 자동 로그인 설정
 ```
 
 - Bridge는 별도 x86/ActiveX 프로세스로 유지하지만 자체 트레이 아이콘은 표시하지 않습니다.
-- `KIS eFriend Market Bridge` 메뉴에서 숨겨진 Bridge 모니터 창을 열 수 있습니다.
-- Bridge 창의 `X`/최소화는 프로세스 종료가 아니라 화면 숨김입니다.
+- `KIS eFriend Market Bridge` 메뉴에서 숨겨진 Bridge 네이티브 모니터 창을 열 수 있습니다.
+- Bridge 창의 `X`/`Alt+F4`는 실제 종료를 시작하지 않고 `SC_CLOSE` 단계에서 즉시 Hide합니다. 최소화도 화면 숨김으로 처리합니다.
+- 숨긴 Bridge 창은 같은 프로세스를 유지하며 Local Suite 트레이 메뉴에서 다시 표시됩니다. 실제 Bridge 종료는 Local Suite 종료 명령이 담당합니다.
 - `서버·Bridge 종료`는 eFriend를 유지합니다.
 - `서버·Bridge·eFriend 종료`는 서버 → Bridge → eFriend 순서로 전체 종료합니다.
 - eFriend 자동 로그인 정보는 Windows Credential Manager에 저장하며 트레이 메뉴에서 설정/삭제합니다.
+
+### Web Monitor
+
+Market AI backend는 브라우저용 **read-only 운영 모니터**도 함께 제공합니다.
+
+```text
+http://127.0.0.1:8001/monitor/
+```
+
+개발 Source of Truth의 Web Monitor는 과분리하지 않고 다음 3파일만 유지합니다. 빌드 시 `MarketAI.exe + _internal/`에 포함됩니다.
+
+```text
+market-ai-dev/monitor/
+├─ index.html
+├─ monitor.css
+└─ monitor.js
+```
+
+- Web Monitor는 **10초 polling**으로 Bridge/quote 상태를 조회합니다.
+- 조회 endpoint는 Dashboard용 `client_id` lease를 생성하거나 연장하지 않습니다.
+- 화면은 process-memory realtime/latest 값을 우선하고, 장마감·재시작 복원에만 durable `MarketSnapshot`을 fallback으로 사용합니다.
+- Web Monitor polling 10초, Dashboard polling 10초, client lease 120초, dynamic KRX DB snapshot write throttle 30초는 서로 다른 contract입니다.
 
 ---
 
@@ -150,6 +173,29 @@ tools/close-efriend-tray.ps1
 운영 README는 build command, PyInstaller 임시 폴더, dev cleanup 절차를 소유하지 않습니다. 재빌드 순서와 개발 산출물 정리는 `market-ai-dev/market_ai_project_handover.md`를 기준으로 합니다.
 
 Dashboard HTML/CSS/JS만 수정한 경우 Market AI runtime EXE 재빌드는 필요하지 않습니다.
+
+## 1.4 재빌드 매핑
+
+개발 소스를 수정했다면 `market-ai-dev`에서 변경 대상에 맞는 빌드만 수행합니다.
+
+```text
+Market AI backend / Web Monitor
+→ build-market-ai.ps1
+→ MarketAI.exe + _internal/
+
+KIS eFriend Market Bridge
+→ build-kis-bridge-release.bat
+→ KisKospi200Bridge.exe
+→ KisKospi200Bridge.exe.config
+→ AxInterop.ITGExpertCtlLib.dll
+→ Interop.ITGExpertCtlLib.dll
+
+Investment Local Suite
+→ build-investment-local-suite.ps1
+→ InvestmentLocalSuite.exe + _suite_internal/
+```
+
+`MarketAI.exe`와 `_internal/`, `InvestmentLocalSuite.exe`와 `_suite_internal/`은 각각 같은 빌드 세트로 배포합니다. Dashboard HTML/CSS/JS만 바뀐 경우 위 EXE를 재빌드하지 않습니다.
 
 ---
 
@@ -260,7 +306,7 @@ SOX 화면 표시도 현재 `INDEX:SOX` 현물지수를 사용합니다. `FUTURE
 
 ## 3.2 보유종목 실시간 현재가 / 평가 overlay
 
-Dashboard의 현재 보유 ticker는 Dashboard가 소유하며 Market AI에 `client_id`와 함께 quote를 요청합니다. 현재 Dashboard의 Market AI signal 조회와 보유종목 live valuation 조회는 visible 상태에서 30초 주기를 사용하고 visible 복귀 시 즉시 갱신합니다. KIS realtime 수신 자체는 계속 실시간입니다.
+Dashboard의 현재 보유 ticker는 Dashboard가 소유하며 Market AI에 `client_id`와 함께 quote를 요청합니다. 현재 Dashboard의 Market AI signal 조회와 보유종목 live valuation 조회는 visible 상태에서 **10초 주기**를 사용하고 visible 복귀 시 즉시 갱신합니다. KIS realtime 수신 자체는 polling과 별개로 계속 실시간입니다.
 
 - `005930`, `000660`은 Signal Engine 입력을 위해 물리 `SC_R` baseline stream으로 항상 유지할 수 있습니다.
 - Market AI/Bridge 시작 직후에는 현재 Dashboard 보유 10종목을 startup warm-up 대상으로 선구독하고, 첫 Dashboard 요청부터는 실제 active client들의 보유 ticker 합집합이 authoritative universe가 됩니다. `client_id + []`도 정상적인 empty universe입니다.
@@ -479,9 +525,11 @@ Bridge 전체가 살아 있어도 특정 ticker stream만 장애면 그 ticker�
 
 동적 보유종목은 Signal/Backtest history를 늘리지 않고 Bridge 모니터 재시작 복원을 위한 최신 `MarketSnapshot`만 최대 30초 단위로 저장합니다. eFriend realtime 입력은 snapshot에 거래소 `business_time`도 함께 저장하므로 재시작 후 모니터의 `시간`은 DB 관측시각이 아니라 실제 시장 시각을 우선 복원합니다. 이 durable snapshot은 모니터 표시용이며 Dashboard valuation의 process-memory quote로 자동 승격하지 않습니다. 장마감 후 재시작 시에는 가장 최근 완료 KRX 거래일 값만 `장마감`으로 복원합니다.
 
-Bridge 모니터는 `K200 · KOSPI · 보유종목 실시간 모니터링` 구조로 운영합니다. K200/KOSPI는 상태·서비스·시간·현재가·전일대비율만 표시하고, Dashboard 보유종목은 lifecycle 요약과 기본 5열 동적 카드로 표시합니다. Signal baseline은 실제 Dashboard 보유종목이 아닐 때 카드 수에 포함하지 않습니다. 하단은 연결 상태와 마지막 수신 시각만 표시하며 내부 Tick/AI/debug 수치는 로그로 확인합니다.
+Bridge 네이티브 모니터는 `K200 · KOSPI · 보유종목 실시간 모니터링` 구조로 운영합니다. K200/KOSPI는 상태·서비스·시간·현재가·전일대비율만 표시하고, Dashboard 보유종목은 lifecycle 요약과 기본 5열 동적 카드로 표시합니다. Signal baseline은 실제 Dashboard 보유종목이 아닐 때 카드 수에 포함하지 않습니다. 하단은 연결 상태와 마지막 수신 시각만 표시하며 내부 Tick/AI/debug 수치는 로그로 확인합니다.
 
-Bridge 자체 트레이 아이콘은 사용하지 않습니다. `InvestmentLocalSuite.exe` 트레이의 `KIS eFriend Market Bridge` 메뉴로 모니터를 열고, 창의 `X`/최소화는 화면만 숨깁니다.
+Native UI의 시각 기준은 Web Monitor의 현대식 카드 UI입니다. 보유종목 요약 Header와 Holdings Card Grid는 별도 layout row를 사용하여 첫 카드 행을 덮지 않으며, rounded card/pill은 부모 배경을 먼저 합성한 뒤 surface를 그려 모서리 검은 쐐기/클리핑이 생기지 않도록 합니다.
+
+Bridge 자체 트레이 아이콘은 사용하지 않습니다. `InvestmentLocalSuite.exe` 트레이의 `KIS eFriend Market Bridge` 메뉴로 창을 열고, `X`/`Alt+F4`는 `SC_CLOSE` 단계에서 즉시 Hide합니다. 최소화도 Hide이며 프로세스는 유지됩니다. 같은 트레이 메뉴가 private window message로 기존 프로세스의 창을 다시 표시하고, 실제 종료는 Local Suite의 `서버·Bridge 종료` 또는 `서버·Bridge·eFriend 종료`가 담당합니다.
 
 ## 7.1 국내 현물 provider 우선순위
 
@@ -497,7 +545,6 @@ KRX 정규장 종료 후
 
 현재 설치된 eFriend Expert Viewer에서는 NXT/ATS 현물 실시간 TR이 확인되지 않았습니다. 따라서 `SC_R`은 현재 KRX 정규장 실시간 입력으로 취급하며, NXT 체결까지 eFriend가 통합 제공한다고 가정하지 않습니다.
 
-Bridge 자체 트레이 아이콘은 사용하지 않습니다. `InvestmentLocalSuite.exe` 트레이의 `KIS eFriend Market Bridge` 메뉴로 Bridge 모니터를 열고, 창의 `X`/최소화는 화면만 숨깁니다.
 
 ---
 
