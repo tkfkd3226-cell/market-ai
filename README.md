@@ -382,12 +382,13 @@ SOX 화면 표시도 현재 `INDEX:SOX` 현물지수를 사용합니다. `FUTURE
 
 ## 3.2 보유종목 실시간 현재가 / 평가 overlay
 
-Dashboard의 현재 보유 ticker는 Dashboard가 소유하며 Market AI에 `client_id`와 함께 quote를 요청합니다.
+Dashboard의 현재 보유 ticker는 Dashboard가 소유하며 Market AI에 `client_id`와 함께 quote를 요청합니다. 현재 Dashboard의 Market AI signal 조회와 보유종목 live valuation 조회는 visible 상태에서 30초 주기를 사용하고 visible 복귀 시 즉시 갱신합니다. KIS realtime 수신 자체는 계속 실시간입니다.
 
-- `005930`, `000660`은 Signal Engine baseline quote로 항상 유지합니다.
-- 나머지 KRX 주식/ETF는 Dashboard가 요청한 현재 보유 ticker에 따라 동적으로 `SC_R` 구독합니다.
+- `005930`, `000660`은 Signal Engine 입력을 위해 물리 `SC_R` baseline stream으로 항상 유지할 수 있습니다.
+- Market AI/Bridge 시작 직후에는 현재 Dashboard 보유 10종목을 startup warm-up 대상으로 선구독하고, 첫 Dashboard 요청부터는 실제 active client들의 보유 ticker 합집합이 authoritative universe가 됩니다. `client_id + []`도 정상적인 empty universe입니다.
+- Signal baseline이 Dashboard 보유 universe에서 빠져도 물리 stream/history는 유지할 수 있지만 Dashboard valuation quote cache는 폐기합니다. 다시 보유종목에 편입되면 다른 종목과 동일하게 새 실제 `SC_R` tick 전까지 `WARMING`입니다.
 - 숫자뿐 아니라 `0163Y0`처럼 영문이 포함된 6자리 KRX ticker도 문자열로 처리합니다.
-- PC / 폰 / 복수 탭의 ticker set은 active client lease 기준 합집합으로 관리합니다.
+- PC / 폰 / 복수 탭의 ticker set은 active client lease 기준 합집합으로 관리하며 현재 lease는 120초입니다.
 - 특정 ticker의 subscription 장애는 전체 quote 실패로 확대하지 않고 해당 ticker만 `stale/unusable`로 처리합니다.
 - subscription이 복구돼도 새 실제 `SC_R` tick을 받기 전에는 장애 전 quote를 다시 usable로 부활시키지 않습니다.
 - 저유동 종목은 마지막 tick이 오래됐다는 이유만으로 자동 stale 처리하지 않습니다.
@@ -558,12 +559,13 @@ KOSPI200 야간  CMEC_R
 보유종목 quote service:
 
 ```text
-KRX 현물/ETF   SC_R    / 6자리 ticker
-baseline       005930, 000660
-동적 universe  Dashboard 활성 client들의 현재 보유 ticker 합집합
+KRX 현물/ETF      SC_R    / 6자리 ticker
+Signal baseline   005930, 000660
+startup warm-up   현재 Dashboard 보유 10종목
+authoritative     Dashboard 활성 client들의 현재 보유 ticker 합집합
 ```
 
-삼성전자·SK하이닉스는 기존 Signal Engine 입력을 위한 baseline이지만, Bridge는 종목별 하드코딩 control을 추가하지 않고 `ticker → ActiveX stream state` collection으로 동적 universe를 관리합니다.
+startup warm-up은 첫 Dashboard 요청 전의 준비 단계일 뿐 영구 baseline이 아닙니다. 첫 authoritative request 이후 실제 보유 universe에서 제거된 종목은 Dashboard valuation cache에서도 제거합니다. 삼성전자·SK하이닉스는 Signal Engine 입력 때문에 물리 stream을 계속 유지할 수 있지만 Dashboard valuation에서는 다른 종목과 같은 fresh-tick lifecycle을 따릅니다.
 
 주요 Bridge / quote API:
 
@@ -595,6 +597,10 @@ forward_success_count
 ```
 
 Bridge 전체가 살아 있어도 특정 ticker stream만 장애면 그 ticker만 unusable로 처리합니다. 이후 `subscribed=true`로 복구됐더라도 새 실제 tick을 받을 때까지 장애 전 quote를 다시 live/closed로 사용하지 않습니다.
+
+동적 보유종목은 Signal/Backtest history를 늘리지 않고 Bridge 모니터 재시작 복원을 위한 최신 `MarketSnapshot`만 최대 30초 단위로 저장합니다. 이 durable snapshot은 모니터 표시용이며 Dashboard valuation의 process-memory quote로 자동 승격하지 않습니다. 장마감 후 재시작 시에는 가장 최근 완료 KRX 거래일 값만 `장마감`으로 복원합니다.
+
+Bridge 모니터는 `K200 · KOSPI · 보유종목 실시간 모니터링` 구조로 운영합니다. K200/KOSPI는 상태·서비스·시간·현재가·전일대비율만 표시하고, Dashboard 보유종목은 lifecycle 요약과 기본 5열 동적 카드로 표시합니다. Signal baseline은 실제 Dashboard 보유종목이 아닐 때 카드 수에 포함하지 않습니다. 하단은 연결 상태와 마지막 수신 시각만 표시하며 내부 Tick/AI/debug 수치는 로그로 확인합니다.
 
 Bridge 자체 트레이 아이콘은 사용하지 않습니다. `InvestmentLocalSuite.exe` 트레이의 `KIS eFriend Market Bridge` 메뉴로 모니터를 열고, 창의 `X`/최소화는 화면만 숨깁니다.
 
