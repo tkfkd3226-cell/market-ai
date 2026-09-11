@@ -1,0 +1,11 @@
+# Local KIS Bridge build/runtime artifacts
+KisKospi200Bridge/bin/
+KisKospi200Bridge/obj/
+
+__pycache__/
+*.py[cod]
+
+# Local Market AI SQLite runtime database
+/db/market_signal.db
+/db/market_signal.db-wal
+/db/market_signal.db-shm
