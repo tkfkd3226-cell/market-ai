@@ -14,6 +14,7 @@ const THEME_STORAGE_KEY = "market-ai-monitor-theme";
 
 const STATUS = Object.freeze({
   LIVE: "live",
+  EXTENDED: "extended",
   CLOSED: "closed",
   WARMING: "warming",
   STALE: "stale",
@@ -22,6 +23,7 @@ const STATUS = Object.freeze({
 
 const STATUS_LABEL = Object.freeze({
   [STATUS.LIVE]: "정상",
+  [STATUS.EXTENDED]: "시간외",
   [STATUS.CLOSED]: "장마감",
   [STATUS.WARMING]: "대기",
   [STATUS.STALE]: "지연",
@@ -80,6 +82,7 @@ const dom = {
 
   summaryTotal: document.getElementById("summary-total"),
   summaryLive: document.getElementById("summary-live"),
+  summaryExtended: document.getElementById("summary-extended"),
   summaryClosed: document.getElementById("summary-closed"),
   summaryWarming: document.getElementById("summary-warming"),
   summaryStale: document.getElementById("summary-stale"),
@@ -101,7 +104,7 @@ function createEmptyMarket(name) {
     status: STATUS.WARMING,
     price: null,
     changePct: null,
-    service: "-",
+    sessionLabel: "-",
     businessTime: null,
     observedAt: null,
   };
@@ -150,6 +153,12 @@ function normalizeClockText(value) {
   );
 
   if (compactMatch) {
+    const hour = Number(compactMatch[1]);
+    const minute = Number(compactMatch[2]);
+    const second = Number(compactMatch[3]);
+    if (hour > 23 || minute > 59 || second > 59) {
+      return null;
+    }
     return [
       compactMatch[1],
       compactMatch[2],
@@ -162,6 +171,12 @@ function normalizeClockText(value) {
   );
 
   if (clockMatch) {
+    const hour = Number(clockMatch[1]);
+    const minute = Number(clockMatch[2]);
+    const second = Number(clockMatch[3] ?? "00");
+    if (hour > 23 || minute > 59 || second > 59) {
+      return null;
+    }
     return [
       clockMatch[1],
       clockMatch[2],
@@ -246,6 +261,14 @@ function normalizeStatus(value) {
     normalized === "ok"
   ) {
     return STATUS.LIVE;
+  }
+
+  if (
+    normalized === "extended" ||
+    normalized === "after_hours" ||
+    normalized === "after-hours"
+  ) {
+    return STATUS.EXTENDED;
   }
 
   if (
@@ -436,6 +459,22 @@ function getTickerNames(payload) {
   return names;
 }
 
+function getTickerMarketStates(payload) {
+  const source =
+    payload?.dashboard_market_states ??
+    payload?.bridge_universe?.dashboard_market_states ??
+    {};
+  const states = new Map();
+  if (source && typeof source === "object" && !Array.isArray(source)) {
+    for (const [tickerValue, stateValue] of Object.entries(source)) {
+      const ticker = normalizeTicker(tickerValue);
+      const marketState = normalizeMarketState(stateValue);
+      if (ticker && marketState) states.set(ticker, marketState);
+    }
+  }
+  return states;
+}
+
 function getMonitorSnapshots(payload) {
   const source =
     payload?.monitor_snapshots ??
@@ -484,36 +523,33 @@ function getMarketState(payload) {
   );
 }
 
-function resolveService(snapshot) {
-  const source = String(
-    firstDefined(
-      snapshot?.service,
-      snapshot?.source,
-      "-",
-    ),
-  );
+function resolveSessionLabel(snapshot, marketName) {
+  const explicit = String(snapshot?.session ?? "").trim().toLowerCase();
+  if (explicit === "day") return "주간";
+  if (explicit === "night") return "야간";
+  if (explicit === "closed") return "장마감";
+  if (explicit === "regular") return "정규장";
 
-  if (source.includes(":")) {
-    const parts = source.split(":");
-
-    return parts
-      .slice(1)
-      .join(":");
-  }
-
-  return source;
+  const source = String(firstDefined(snapshot?.source, snapshot?.service, "")).toUpperCase();
+  if (source.includes("CMEC_R")) return "야간";
+  if (source.includes("FC_R")) return "주간";
+  if (marketName === "KOSPI") return "정규장";
+  return "-";
 }
 
 function resolveBusinessTime(snapshot) {
-  return normalizeClockText(
-    firstDefined(
-      snapshot?.business_time,
-      snapshot?.businessTime,
-      snapshot?.market_time,
-      snapshot?.time,
-      snapshot?.observed_at,
-    ),
-  );
+  const candidates = [
+    snapshot?.business_time,
+    snapshot?.businessTime,
+    snapshot?.market_time,
+    snapshot?.time,
+    snapshot?.observed_at,
+  ];
+  for (const candidate of candidates) {
+    const normalized = normalizeClockText(candidate);
+    if (normalized) return normalized;
+  }
+  return null;
 }
 
 
@@ -521,7 +557,7 @@ function resolveBusinessTime(snapshot) {
    6. Status Resolution
    ========================================================= */
 
-function resolveHoldingStatus(snapshot) {
+function resolveHoldingStatus(snapshot, marketState = "") {
   const explicitStatus = normalizeStatus(
     firstDefined(
       snapshot?.state,
@@ -530,11 +566,21 @@ function resolveHoldingStatus(snapshot) {
   );
 
   if (explicitStatus) {
+    if (
+      explicitStatus === STATUS.LIVE &&
+      normalizeMarketState(marketState || snapshot?.market_state) === "extended"
+    ) {
+      return STATUS.EXTENDED;
+    }
     return explicitStatus;
   }
 
   if (!snapshot) {
     return STATUS.WARMING;
+  }
+
+  if (normalizeMarketState(marketState || snapshot?.market_state) === "extended") {
+    return STATUS.EXTENDED;
   }
 
   if (isCashMarketClosed()) {
@@ -647,7 +693,7 @@ function normalizeMarket(
       ),
     ),
 
-    service: resolveService(snapshot),
+    sessionLabel: resolveSessionLabel(snapshot, name),
 
     businessTime:
       resolveBusinessTime(snapshot),
@@ -664,35 +710,39 @@ function normalizeHolding(
   ticker,
   name,
   snapshot,
+  marketState = "",
 ) {
+  const effectiveSnapshot = snapshot
+    ? { ...snapshot, market_state: marketState || snapshot.market_state }
+    : null;
   return {
     ticker,
     name: name || ticker,
 
     status:
-      resolveHoldingStatus(snapshot),
+      resolveHoldingStatus(effectiveSnapshot, marketState),
 
     price: toFiniteNumber(
       firstDefined(
-        snapshot?.price,
-        snapshot?.current_price,
+        effectiveSnapshot?.price,
+        effectiveSnapshot?.current_price,
       ),
     ),
 
     changePct: toFiniteNumber(
       firstDefined(
-        snapshot?.change_pct,
-        snapshot?.changePercent,
+        effectiveSnapshot?.change_pct,
+        effectiveSnapshot?.changePercent,
       ),
     ),
 
     businessTime:
-      resolveBusinessTime(snapshot),
+      resolveBusinessTime(effectiveSnapshot),
 
     observedAt:
       firstDefined(
-        snapshot?.observed_at,
-        snapshot?.observedAt,
+        effectiveSnapshot?.observed_at,
+        effectiveSnapshot?.observedAt,
       ) ?? null,
   };
 }
@@ -701,6 +751,7 @@ function normalizePayload(payload) {
   const snapshots = createSnapshotMap(payload);
 
   const tickerNames = getTickerNames(payload);
+  const tickerMarketStates = getTickerMarketStates(payload);
   const tickers = getDashboardTickers(payload);
 
   state.marketState = getMarketState(payload);
@@ -721,6 +772,7 @@ function normalizePayload(payload) {
       ticker,
       tickerNames.get(ticker),
       snapshot,
+      tickerMarketStates.get(ticker),
     );
   });
 
@@ -803,9 +855,9 @@ function updateMarketCard(
       '[data-role="change"]',
     );
 
-  const service =
+  const session =
     card.querySelector(
-      '[data-role="service"]',
+      '[data-role="session"]',
     );
 
   const time =
@@ -823,9 +875,9 @@ function updateMarketCard(
     market.changePct,
   );
 
-  if (service) {
-    service.textContent =
-      market.service || "-";
+  if (session) {
+    session.textContent =
+      market.sessionLabel || "-";
   }
 
   if (time) {
@@ -1049,6 +1101,7 @@ function summarizeHoldings(
   const summary = {
     total: holdings.length,
     live: 0,
+    extended: 0,
     closed: 0,
     warming: 0,
     stale: 0,
@@ -1080,6 +1133,9 @@ function renderSummary(
 
   dom.summaryLive.textContent =
     String(summary.live);
+
+  dom.summaryExtended.textContent =
+    String(summary.extended);
 
   dom.summaryClosed.textContent =
     String(summary.closed);

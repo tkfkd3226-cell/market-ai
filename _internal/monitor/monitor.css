@@ -300,7 +300,8 @@ time,
    5. Status
    ========================================================= */
 
-[data-status="live"] {
+[data-status="live"],
+[data-status="extended"] {
   --status-color: var(--color-live);
   --status-bg: var(--color-live-bg);
 }
@@ -743,12 +744,9 @@ time,
     display: none;
   }
 
-  .market-grid {
-    grid-template-columns: 1fr;
-  }
-
+  .market-grid,
   .holdings-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .holding-card {
