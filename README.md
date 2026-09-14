@@ -85,7 +85,11 @@ eFriend 자동 로그인 설정
 Market AI backend는 브라우저용 **read-only 운영 모니터**도 함께 제공합니다.
 
 ```text
+로컬
 http://127.0.0.1:8001/monitor/
+
+폰/외부 tailnet
+https://node.tail60a98e.ts.net/monitor/
 ```
 
 개발 Source of Truth의 Web Monitor는 과분리하지 않고 다음 3파일만 유지합니다. 빌드 시 `MarketAI.exe + _internal/`에 포함됩니다.
@@ -97,9 +101,13 @@ market-ai-dev/monitor/
 └─ monitor.js
 ```
 
-- Web Monitor는 **10초 polling**으로 Bridge/quote 상태를 조회합니다.
+- Web Monitor는 **10초 polling**으로 read-only `/api/bridge/kis-efriend/quote-universe`를 조회합니다.
 - 조회 endpoint는 Dashboard용 `client_id` lease를 생성하거나 연장하지 않습니다.
 - 화면은 process-memory realtime/latest 값을 우선하고, 장마감·재시작 복원에만 durable `MarketSnapshot`을 fallback으로 사용합니다.
+- K200/KOSPI는 `상태 · 세션 · 시간 · 현재가 · 등락률`을 표시하며, 내부 `FC_R / CMEC_R / JUC_R / SC_R` 서비스 코드나 instrument code는 사용자 화면에 노출하지 않습니다.
+- 보유종목은 `정상 / 시간외 / 장마감 / 대기 / 지연 / 오류`를 구분합니다.
+- `business_time`은 실제 `HHMMSS` 범위만 유효하며 `888888` 같은 값은 실제 시각처럼 표시하지 않습니다. 유효값이 없으면 모니터는 `observed_at`의 KST 시각을 fallback으로 사용할 수 있습니다.
+- Phone에서도 **K200/KOSPI 시장 카드와 보유종목 카드 모두 한 줄 2개(2열)**를 유지합니다. 760px 이하/420px 이하에서도 보유종목을 1열로 강제하지 않습니다.
 - Web Monitor polling 10초, Dashboard polling 10초, client lease 120초, dynamic KRX DB snapshot write throttle 30초는 서로 다른 contract입니다.
 
 ---
@@ -241,7 +249,7 @@ https://node.tail60a98e.ts.net
 
 Market AI API의 8001/8002 포트를 인터넷에 직접 포트포워딩하지 않습니다. FastAPI 전체 API는 `127.0.0.1:8001`에만 바인딩하고, Tailscale Serve는 Local Suite의 `127.0.0.1:8002` GET-only proxy만 tailnet 내부 HTTPS로 제공합니다. 따라서 원격 write method는 FastAPI에 도달하지 않습니다.
 
-8002 원격 allowlist는 현재 다음 Dashboard 조회면으로 제한합니다.
+8002 원격 allowlist는 현재 **Dashboard 조회 API + Web Monitor read-only surface**로 제한합니다.
 
 ```text
 /api/health
@@ -249,9 +257,15 @@ Market AI API의 8001/8002 포트를 인터넷에 직접 포트포워딩하지 �
 /api/market-data/snapshot
 /api/market-data/krx-quotes
 /api/bridge/kis-efriend/status
+/api/bridge/kis-efriend/quote-universe
+
+/monitor/
+/monitor/index.html
+/monitor/monitor.css
+/monitor/monitor.js
 ```
 
-이 목록 밖의 GET은 404로 proxy에서 종료합니다. `krx-quotes`는 proxy에서 client당 최대 64 ticker와 query/client 형식을 검사하고, 원격 client 16개 상한과 local/remote/Signal을 합친 실제 64-ticker capacity는 backend `KrxQuoteService`에서 원자적으로 관리합니다. `64`는 요청 형식상 최대치이며, 실제 허용 여부는 Signal baseline과 local/remote active lease의 **고유 ticker 합집합**이 64개 이내인지 backend가 판단합니다. 따라서 baseline 2개를 요청에 포함한 64-ticker Dashboard도 물리 universe가 64개라면 정상 허용될 수 있고, 반대로 64개가 모두 non-baseline이면 capacity 초과로 거절될 수 있습니다. capacity가 부족한 remote 요청은 422로 거절되고 기존 local lease를 밀어내지 않습니다. 반대로 local 요청은 필요하면 오래된 remote lease를 회수하므로 remote 선점 때문에 정상 local 요청이 거절되지 않습니다. 따라서 8002를 "모든 GET을 허용하는 read-only API"로 해석하지 않습니다.
+`/monitor` 요청은 `/monitor/`로 **308 canonical redirect**하여 상대 CSS/JS가 같은 tailnet origin에서 정상 로드되게 합니다. 이 목록 밖의 GET은 404로 proxy에서 종료합니다. `krx-quotes`는 proxy에서 client당 최대 64 ticker와 query/client 형식을 검사하고, 원격 client 16개 상한과 local/remote/Signal을 합친 실제 64-ticker capacity는 backend `KrxQuoteService`에서 원자적으로 관리합니다. `64`는 요청 형식상 최대치이며, 실제 허용 여부는 Signal baseline과 local/remote active lease의 **고유 ticker 합집합**이 64개 이내인지 backend가 판단합니다. 따라서 baseline 2개를 요청에 포함한 64-ticker Dashboard도 물리 universe가 64개라면 정상 허용될 수 있고, 반대로 64개가 모두 non-baseline이면 capacity 초과로 거절될 수 있습니다. capacity가 부족한 remote 요청은 422로 거절되고 기존 local lease를 밀어내지 않습니다. 반대로 local 요청은 필요하면 오래된 remote lease를 회수하므로 remote 선점 때문에 정상 local 요청이 거절되지 않습니다. 따라서 8002를 "모든 GET을 허용하는 read-only API"로 해석하지 않습니다.
 
 외부에서 Market AI가 표시되려면:
 
@@ -289,10 +303,11 @@ https://tkfkd3226-cell.github.io
 - `app.py`를 수정한 경우 `build-market-ai.ps1`로 다시 빌드하고 **MarketAI.exe + `_internal/`을 함께 교체**해야 실제 런타임에 반영됩니다.
 - CORS는 browser origin 허용 규칙일 뿐 write 접근제어 수단이 아닙니다. 원격 write 차단은 Local Suite의 8002 GET-only proxy가 담당합니다.
 
-현재 원격 조회가 정상인지 확인할 때는 Tailscale 연결 상태에서 다음과 같은 API를 직접 확인할 수 있습니다.
+현재 원격 조회가 정상인지 확인할 때는 Tailscale 연결 상태에서 다음을 직접 확인할 수 있습니다.
 
 ```text
 https://node.tail60a98e.ts.net/api/health
+https://node.tail60a98e.ts.net/monitor/
 ```
 
 원격 경계 QA에서는 위 GET이 정상이어야 하고, allowlist 밖 GET은 404, 잘못된 ticker/과도한 ticker 요청은 422, backend의 remote client 수 또는 남은 ticker capacity 초과도 422, Tailscale URL을 통한 POST/PUT/PATCH/DELETE는 8002 proxy에서 405로 차단되어야 합니다. 원격 `client_id`는 backend에서 `remote-<hash>` namespace로 관측되어야 합니다. 원격 62 ticker를 먼저 점유한 뒤 서로 다른 local ticker를 요청하는 반례에서도 local이 성공하고 remote lease가 회수되어야 합니다. 또한 재시작 직후 remote가 먼저 붙어도 local bootstrap은 유지되어야 하고, remote 요청만으로 `dashboard_quote_universe.json`이 바뀌면 안 됩니다. Bridge의 실제 POST는 localhost 8001 direct path를 계속 사용합니다.
@@ -341,7 +356,7 @@ Dashboard의 현재 보유 ticker는 Dashboard가 소유하며 Market AI에 `cli
 - Signal baseline이 Dashboard 보유 universe에서 빠져도 물리 stream/history는 유지할 수 있지만 Dashboard valuation quote cache는 폐기합니다. 다시 보유종목에 편입되면 다른 종목과 동일하게 새 실제 `SC_R` tick 전까지 `WARMING`입니다.
 - 숫자뿐 아니라 `0163Y0`처럼 영문이 포함된 6자리 KRX ticker도 문자열로 처리합니다.
 - PC / 폰 / 복수 탭의 ticker set은 active client lease 기준 합집합으로 관리하며 현재 lease는 120초입니다. 원격 `remote-<hash>` client는 최대 16개이며 local/remote admission은 backend의 같은 lock에서 처리합니다. local request가 capacity를 필요로 하면 remote lease보다 우선합니다.
-- Market AI 시작 시 보유종목 bootstrap은 Python/C#에 종목을 하드코딩하지 않고 형제 `investment-dashboard/data/portfolio.json`의 현재 `qty > 0` 보유종목과 이름을 읽습니다. Dashboard 저장소를 일시적으로 읽을 수 없을 때만 `market-ai/db/dashboard_quote_universe.json`의 마지막 **local-only authoritative universe**를 fallback으로 사용합니다. bootstrap은 첫 admission 성공 local Dashboard request까지 로컬 예약 용량으로 유지되므로 원격/Tailscale quote GET이 먼저 와도 해제되지 않으며, 원격 요청은 이 runtime state를 쓰지 않습니다. 로컬 복수 탭의 동시 write는 현재 local union으로 직렬화됩니다. 이 runtime state는 Git 추적 대상이 아닙니다.
+- Market AI 시작 시 보유종목 bootstrap은 Python/C#에 종목을 하드코딩하지 않고 형제 `investment-dashboard/data/portfolio.json`의 현재 `qty > 0` 보유종목과 **이름 + 종목 type**을 읽습니다. Dashboard 저장소를 일시적으로 읽을 수 없을 때만 `market-ai/db/dashboard_quote_universe.json`의 마지막 **local-only authoritative universe**를 fallback으로 사용하며 이 파일에도 ticker/name/type을 함께 보존합니다. bootstrap은 첫 admission 성공 local Dashboard request까지 로컬 예약 용량으로 유지되므로 원격/Tailscale quote GET이 먼저 와도 해제되지 않으며, 원격 요청은 이 runtime state를 쓰지 않습니다. 로컬 복수 탭의 동시 write는 현재 local union으로 직렬화됩니다. 이 runtime state는 Git 추적 대상이 아닙니다.
 - 특정 ticker의 subscription 장애는 전체 quote 실패로 확대하지 않고 해당 ticker만 `stale/unusable`로 처리합니다.
 - subscription이 복구돼도 새 실제 `SC_R` tick을 받기 전에는 장애 전 quote를 다시 usable로 부활시키지 않습니다.
 - 저유동 종목은 마지막 tick이 오래됐다는 이유만으로 자동 stale 처리하지 않습니다.
@@ -350,13 +365,16 @@ Dashboard 적용 규칙:
 
 ```text
 KST 오늘
-→ usable live/closed quote를 화면 평가 계산에 overlay
+→ usable=true quote를 화면 평가 계산에 overlay
+   - 정규장(open): state=live
+   - 개별주식 15:30~20:00 extended: state=live
+   - 신뢰 가능한 당일 session 종료: state=closed
 
 특정 ticker warming/stale/unavailable/error
 → 해당 ticker만 JSON 저장값 fallback
 
 과거 activeDate
-→ 오늘 live quote를 절대 overlay하지 않고 historical JSON 유지
+→ 오늘 realtime quote를 절대 overlay하지 않고 historical JSON 유지
 ```
 
 live quote는 **화면용 메모리 overlay**입니다.
@@ -413,12 +431,15 @@ KOSPI200 야간 CMEC_R                     ✅
 실제 KIS 선물 → Signal Engine            ✅
 KOSPI200 근월물 AUTO rollover           ✅
 KRX 휴장일/session 정책                 ✅
+개별주식 15:30~20:00 시간외 상태          ✅
+ETF·KOSPI 15:30 정규장 마감 유지          ✅
 Dashboard endpoint 실패 격리             ✅
 Dashboard 현재 보유종목 live valuation   ✅
 Dashboard 로컬 Market AI 조회            ✅
 Dashboard 원격 Tailscale 조회            ✅
 Local Suite Tailscale Serve 자가복구      ✅
 Remote GET-only proxy (:8002)           ✅
+Tailscale Web Monitor `/monitor/`         ✅
 GitHub Pages CORS 허용                   ✅
 Python-free target runtime               ✅
 External Python process 불필요           ✅
@@ -552,27 +573,50 @@ forward_success_count
 
 Bridge 전체가 살아 있어도 특정 ticker stream만 장애면 그 ticker만 unusable로 처리합니다. 이후 `subscribed=true`로 복구됐더라도 새 실제 tick을 받을 때까지 장애 전 quote를 다시 live/closed로 사용하지 않습니다.
 
-동적 보유종목은 Signal/Backtest history를 늘리지 않고 Bridge 모니터 재시작 복원을 위한 최신 `MarketSnapshot`만 최대 30초 단위로 저장합니다. eFriend realtime 입력은 snapshot에 거래소 `business_time`도 함께 저장하므로 재시작 후 모니터의 `시간`은 DB 관측시각이 아니라 실제 시장 시각을 우선 복원합니다. 이 durable snapshot은 모니터 표시용이며 Dashboard valuation의 process-memory quote로 자동 승격하지 않습니다. 장마감 후 재시작 시에는 가장 최근 완료 KRX 거래일 값만 `장마감`으로 복원합니다.
+동적 보유종목은 Signal/Backtest history를 늘리지 않고 Bridge 모니터 재시작 복원을 위한 최신 `MarketSnapshot`만 최대 30초 단위로 저장합니다. eFriend realtime 입력의 거래소 `business_time`은 **실제 `HHMMSS` 범위(`00:00:00`~`23:59:59`)일 때만** 저장·표시합니다. `888888`처럼 6자리지만 유효하지 않은 값은 `null`로 정규화하고 DB에도 저장하지 않습니다. 재시작 후 모니터의 `시간`은 유효한 시장 시각을 우선 복원하고, 없으면 `observed_at` KST 시각을 fallback으로 사용할 수 있습니다. 이 durable snapshot은 모니터 표시용이며 Dashboard valuation의 process-memory quote로 자동 승격하지 않습니다. 장마감 후 재시작 시에는 가장 최근 완료 KRX 거래일 값만 `장마감`으로 복원합니다.
 
-Bridge 네이티브 모니터는 `K200 · KOSPI · 보유종목 실시간 모니터링` 구조로 운영합니다. K200/KOSPI는 상태·서비스·시간·현재가·전일대비율만 표시하고, Dashboard 보유종목은 lifecycle 요약과 기본 5열 동적 카드로 표시합니다. Signal baseline은 실제 Dashboard 보유종목이 아닐 때 카드 수에 포함하지 않습니다. 하단은 연결 상태와 마지막 수신 시각만 표시하며 내부 Tick/AI/debug 수치는 로그로 확인합니다.
+Bridge 네이티브 모니터는 `K200 · KOSPI · 보유종목 실시간 모니터링` 구조로 운영합니다. K200/KOSPI는 `상태 · 세션 · 시간 · 현재가 · 전일대비율`만 표시하고, Dashboard 보유종목은 `정상 / 시간외 / 장마감 / 대기 / 지연 / 오류` lifecycle 요약과 기본 5열 동적 카드로 표시합니다. 사용자 화면에는 `FC_R / CMEC_R / JUC_R / SC_R` 같은 내부 TR/service code나 instrument code를 표시하지 않고 `주간 / 야간 / 정규장 / 시간외 / 장마감`처럼 의미 있는 상태만 표시합니다. Signal baseline은 실제 Dashboard 보유종목이 아닐 때 카드 수에 포함하지 않습니다. 하단은 연결 상태와 마지막 수신 시각만 표시하며 내부 Tick/AI/debug 수치는 로그로 확인합니다.
 
 Native UI의 시각 기준은 Web Monitor의 현대식 카드 UI입니다. 보유종목 요약 Header와 Holdings Card Grid는 별도 layout row를 사용하여 첫 카드 행을 덮지 않으며, rounded card/pill은 부모 배경을 먼저 합성한 뒤 surface를 그려 모서리 검은 쐐기/클리핑이 생기지 않도록 합니다.
 
 Bridge 자체 트레이 아이콘은 사용하지 않습니다. `InvestmentLocalSuite.exe` 트레이의 `KIS eFriend Market Bridge` 메뉴로 창을 열고, `X`/`Alt+F4`는 `SC_CLOSE` 단계에서 즉시 Hide합니다. 최소화도 Hide이며 프로세스는 유지됩니다. 같은 트레이 메뉴가 private window message로 기존 프로세스의 창을 다시 표시하고, 실제 종료는 Local Suite의 `서버·Bridge 종료` 또는 `서버·Bridge·eFriend 종료`가 담당합니다.
 
-## 7.1 국내 현물 provider 우선순위
+## 7.1 국내 현물 provider / session 우선순위
+
+Signal/collector의 Yahoo 장애 fallback과 Dashboard 보유종목 realtime session은 서로 다른 contract입니다.
 
 ```text
-KRX 정규장 중
+Signal/collector 기준 KRX 정규장(09:00~15:30)
 eFriend 정상 → eFriend 우선
 eFriend stale(기본 90초, `MARKET_AI_KIS_FALLBACK_AFTER_SECONDS` 초과) → Yahoo/yfinance 장애 fallback
 
-KRX 정규장 종료 후
-마지막 eFriend snapshot 유지
+정규장 종료 후
+마지막 검증 eFriend snapshot 유지
 → 단순히 90초가 지났다는 이유로 Yahoo가 덮어쓰지 않음
 ```
 
-현재 설치된 eFriend Expert Viewer에서는 NXT/ATS 현물 실시간 TR이 확인되지 않았습니다. 따라서 `SC_R`은 현재 KRX 정규장 실시간 입력으로 취급하며, NXT 체결까지 eFriend가 통합 제공한다고 가정하지 않습니다.
+Dashboard 보유종목 `SC_R` quote의 시장 상태는 portfolio의 종목 `type`을 사용해 별도로 판정합니다.
+
+```text
+개별주식
+09:00~15:30  open / 정상
+15:30~20:00  extended / 시간외
+20:00 이후   closed / 장마감
+
+ETF
+09:00~15:30  open / 정상
+15:30 이후   closed / 장마감
+
+KOSPI 현물지수
+15:30 정규장 마감 유지
+
+K200 선물
+기존 day / night / CLOSED route 유지
+```
+
+개별주식 `extended`에서도 새 `SC_R` tick이 수신되면 Dashboard quote는 `state=live`, `usable=true`로 계속 사용할 수 있습니다. ETF와 KOSPI의 15:30 정규장 마감, Signal Engine의 **15:30 KOSPI 종가 판정**은 20:00으로 연장하지 않습니다.
+
+현재 화면과 API는 `SC_R` 수신 사실과 Market AI의 종목별 session 판정을 사용합니다. 특정 eFriend service가 NXT/ATS 체결을 어떤 방식으로 포함하는지까지 UI에서 추정하거나 별도 라벨로 단정하지 않습니다.
 
 
 ---
@@ -762,9 +806,10 @@ http://localhost:8000/
 
 ```text
 https://node.tail60a98e.ts.net/api/health
+https://node.tail60a98e.ts.net/monitor/
 ```
 
-원격 경계 QA에서는 위 GET이 정상이어야 하고, allowlist 밖 GET은 404, 잘못된 ticker/과도한 ticker 요청은 422, backend의 remote client 수 또는 남은 ticker capacity 초과도 422, Tailscale URL을 통한 POST/PUT/PATCH/DELETE는 8002 proxy에서 405로 차단되어야 합니다. 원격 `client_id`는 backend에서 `remote-<hash>` namespace로 관측되어야 합니다. 원격 62 ticker를 먼저 점유한 뒤 서로 다른 local ticker를 요청하는 반례에서도 local이 성공하고 remote lease가 회수되어야 합니다. 또한 재시작 직후 remote가 먼저 붙어도 local bootstrap은 유지되어야 하고, remote 요청만으로 `dashboard_quote_universe.json`이 바뀌면 안 됩니다. Bridge의 실제 POST는 localhost 8001 direct path를 계속 사용합니다.
+원격 경계 QA에서는 health와 `/monitor/`, `/api/bridge/kis-efriend/quote-universe` GET이 정상이어야 합니다. `/monitor`는 `/monitor/`로 308 정규화되고, allowlist 밖 GET은 404, 잘못된 ticker/과도한 ticker 요청은 422, backend의 remote client 수 또는 남은 ticker capacity 초과도 422여야 합니다. Tailscale URL을 통한 POST/PUT/PATCH/DELETE는 8002 proxy에서 405로 차단되어야 합니다. 원격 `client_id`는 backend에서 `remote-<hash>` namespace로 관측되어야 합니다. 원격 62 ticker를 먼저 점유한 뒤 서로 다른 local ticker를 요청하는 반례에서도 local이 성공하고 remote lease가 회수되어야 합니다. 또한 재시작 직후 remote가 먼저 붙어도 local bootstrap은 유지되어야 하고, remote 요청만으로 `dashboard_quote_universe.json`이 바뀌면 안 됩니다. Bridge의 실제 POST는 localhost 8001 direct path를 계속 사용합니다.
 
 Local Suite 종료 contract:
 
@@ -836,12 +881,14 @@ Market AI runtime 저장소와 Dashboard 공개 호스팅은 서로 다른 역�
 
 # 15. 인수인계
 
-Market AI의 장기 유지보수 기준은 개발 폴더의:
+Market AI 개발 문서는 역할을 나눕니다.
 
 ```text
 market-ai-dev\market_ai_project_handover.md
+→ architecture / build / deploy / runtime 장기 contract
+
+market-ai-dev\market_ai_evaluation_guide.md
+→ 평가 / 점수 / A·B·C / 반례 / `수정해` 종료 기준
 ```
 
-를 Source of Truth로 합니다.
-
-새 작업에서는 최신 개발 소스와 handover를 먼저 확인한 뒤 사용자의 현재 요청부터 진행합니다.
+새 작업에서는 최신 개발 소스와 handover를 먼저 확인하고, 평가 요청이면 evaluation guide까지 함께 확인한 뒤 사용자의 현재 요청부터 진행합니다.
