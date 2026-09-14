@@ -51,6 +51,8 @@ Market AI API 자체는 계속 다음 loopback 주소에서 실행됩니다.
 http://127.0.0.1:8001
 ```
 
+이 full API bind는 runtime 코드에서 고정합니다. `.env`나 Windows 환경변수의 `MARKET_AI_HOST` / `MARKET_AI_PORT`로 LAN 또는 다른 포트에 재바인딩하지 않습니다. 원격 조회는 반드시 8002 GET-only 경계를 사용합니다.
+
 Local Suite는 원격 Dashboard용으로 별도 GET-only proxy도 loopback에 엽니다.
 
 ```text
@@ -281,7 +283,8 @@ Local Suite는 startup에서 Tailscale service / tailnet 연결 / Serve 설정�
 - 정상 Serve가 이미 있으면 다시 쓰지 않습니다.
 - Serve 설정이 없거나 `127.0.0.1:8002` GET-only proxy를 가리키지 않으면 `tailscale serve --bg 8002` 복구를 best-effort로 시도합니다.
 - 8002 GET-only proxy 자체가 기동하지 못하면 원격 기능을 **fail-closed**로 두고 canonical Serve root를 `tailscale serve off`로 해제합니다. 과거 `Serve → 8001` 설정이 재사용되어 write API가 다시 원격 노출되는 것을 허용하지 않습니다.
-- GET-only Serve 복구/검증 실패 때 legacy `proxy http://127.0.0.1:8001`이 확인되면 해당 Serve를 해제하고 로컬 8001만 유지합니다.
+- 정상 `Serve → 8002`가 보이더라도 다른 handler/path에 `Serve → 8001`이 동시에 남아 있으면 **unsafe mixed mapping**으로 판정해 Serve root를 내리고 8002만 다시 구성합니다.
+- GET-only Serve 복구 자체가 실패하거나 복구 후 안전한 상태를 다시 확인할 수 없으면 `serve off`를 best-effort로 시도하고 remote를 정상으로 판정하지 않은 채 로컬 8001만 유지합니다.
 - Tailscale service가 멈춰 있으면 Windows `Tailscale` service 시작을 시도할 수 있습니다.
 - `NeedsLogin`, Tailscale 미설치, Serve/remote health 실패는 원격 기능 경고이며 로컬 Market AI 기동 실패로 처리하지 않습니다.
 
@@ -357,6 +360,7 @@ Dashboard의 현재 보유 ticker는 Dashboard가 소유하며 Market AI에 `cli
 - 숫자뿐 아니라 `0163Y0`처럼 영문이 포함된 6자리 KRX ticker도 문자열로 처리합니다.
 - PC / 폰 / 복수 탭의 ticker set은 active client lease 기준 합집합으로 관리하며 현재 lease는 120초입니다. 원격 `remote-<hash>` client는 최대 16개이며 local/remote admission은 backend의 같은 lock에서 처리합니다. local request가 capacity를 필요로 하면 remote lease보다 우선합니다.
 - Market AI 시작 시 보유종목 bootstrap은 Python/C#에 종목을 하드코딩하지 않고 형제 `investment-dashboard/data/portfolio.json`의 현재 `qty > 0` 보유종목과 **이름 + 종목 type**을 읽습니다. Dashboard 저장소를 일시적으로 읽을 수 없을 때만 `market-ai/db/dashboard_quote_universe.json`의 마지막 **local-only authoritative universe**를 fallback으로 사용하며 이 파일에도 ticker/name/type을 함께 보존합니다. bootstrap은 첫 admission 성공 local Dashboard request까지 로컬 예약 용량으로 유지되므로 원격/Tailscale quote GET이 먼저 와도 해제되지 않으며, 원격 요청은 이 runtime state를 쓰지 않습니다. 로컬 복수 탭의 동시 write는 현재 local union으로 직렬화됩니다. 이 runtime state는 Git 추적 대상이 아닙니다.
+- `dashboard_quote_universe.json`은 재시작 warm-up용 보조 상태입니다. local lease admission이 성공한 뒤 이 파일 저장만 실패하더라도 이미 정상 처리된 quote API를 500으로 뒤집지 않으며, warning 후 in-memory 상태를 계속 사용하고 다음 local 요청에서 다시 저장을 시도합니다.
 - 특정 ticker의 subscription 장애는 전체 quote 실패로 확대하지 않고 해당 ticker만 `stale/unusable`로 처리합니다.
 - subscription이 복구돼도 새 실제 `SC_R` tick을 받기 전에는 장애 전 quote를 다시 usable로 부활시키지 않습니다.
 - 저유동 종목은 마지막 tick이 오래됐다는 이유만으로 자동 stale 처리하지 않습니다.
@@ -455,7 +459,7 @@ OpenAI 실제 API live QA                  ⏸ 선택 기능
 
 기본 Market AI 실행에는 `.env`가 필요하지 않습니다.
 
-OpenAI 뉴스 분석이나 명시적 운영 override가 필요한 경우에만 `.env.example`을 참고하여 개발/운영 PC에 `.env`를 둘 수 있습니다.
+OpenAI 뉴스 분석이나 명시적으로 허용된 기능 설정 override가 필요한 경우에만 `.env.example`을 참고하여 개발/운영 PC에 `.env`를 둘 수 있습니다. **네트워크 bind(`127.0.0.1:8001`)는 `.env` override 대상이 아닙니다.**
 
 예:
 
