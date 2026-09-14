@@ -57,7 +57,7 @@ Local Suite는 원격 Dashboard용으로 별도 GET-only proxy도 loopback에 �
 http://127.0.0.1:8002
 ```
 
-8002는 원격 Dashboard가 실제 사용하는 조회 API만 allowlist로 노출하고 해당 경로의 `GET / HEAD / OPTIONS`만 8001로 전달합니다. `POST / PUT / PATCH / DELETE`는 405로 차단하고, allowlist 밖의 GET도 backend에 전달하지 않습니다. `/api/market-data/krx-quotes`는 정상 Dashboard의 탭별 lease 의미를 유지하되 원격 `client_id`를 별도 namespace의 고정 길이 hash로 바꿔 로컬 lease와 충돌하지 않게 합니다. 또한 원격 client 수와 ticker 합집합을 proxy에서 유한하게 제한하여 임의 query/client가 lease record를 무한히 누적하거나 backend의 64-ticker 물리 한도를 초과시키지 못하게 합니다. 이 경계는 로컬 `portfolio.json`의 갱신 시점에 의존하지 않으므로 새 보유종목도 정상적인 6자리 KRX ticker라면 즉시 요청할 수 있습니다. KIS Bridge의 tick/heartbeat와 로컬 유지보수 write API는 기존대로 8001에 직접 연결하고 Tailscale Serve에는 노출하지 않습니다.
+8002는 원격 Dashboard가 실제 사용하는 조회 API만 allowlist로 노출하고 해당 경로의 `GET / HEAD / OPTIONS`만 8001로 전달합니다. `POST / PUT / PATCH / DELETE`는 405로 차단하고, allowlist 밖의 GET도 backend에 전달하지 않습니다. `/api/market-data/krx-quotes`는 원격 `client_id`를 `remote-<hash>` namespace로 바꿔 로컬 lease와 충돌하지 않게 하며 client당 요청 ticker는 최대 64개로 제한합니다. **proxy는 lease table을 따로 보관하지 않습니다.** 실제 원격 client 수·전체 ticker capacity admission은 8001 `KrxQuoteService`가 단일 lock에서 관리하고, 원격은 로컬 lease·Signal baseline과 첫 local request 전의 **local restart bootstrap 예약 용량**을 제외한 남은 capacity만 사용할 수 있습니다. 원격이 먼저 capacity를 차지했더라도 이후 로컬 Dashboard 요청이 필요하면 backend가 오래된 원격 lease부터 회수하여 로컬을 우선합니다. 첫 **admission 성공 local request**만 bootstrap을 authoritative하게 해제하며, capacity 초과 등으로 거절된 local request와 원격 요청은 bootstrap을 해제하거나 `dashboard_quote_universe.json` restart state에 기록할 수 없습니다. KIS Bridge의 tick/heartbeat와 로컬 유지보수 write API는 기존대로 8001에 직접 연결하고 Tailscale Serve에는 노출하지 않습니다.
 
 외부 Python 실행 파일이나 `python -m uvicorn`, `python -m http.server`, runtime pip 설치에는 의존하지 않습니다.
 
@@ -251,7 +251,7 @@ Market AI API의 8001/8002 포트를 인터넷에 직접 포트포워딩하지 �
 /api/bridge/kis-efriend/status
 ```
 
-이 목록 밖의 GET은 404로 proxy에서 종료합니다. `krx-quotes`는 원격 client 16개, client당 ticker 62개, 원격 ticker 합집합 62개를 상한으로 두고 120초 lease 만료를 proxy에서도 추적합니다. `62`는 backend 물리 한도 64개에서 항상 유지되는 Signal baseline 2개(`005930`, `000660`)를 제외한 최대 Dashboard universe와 맞춘 값입니다. 제한 초과는 backend에 전달하기 전에 429/422로 종료합니다. 따라서 8002를 "모든 GET을 허용하는 read-only API"로 해석하지 않습니다.
+이 목록 밖의 GET은 404로 proxy에서 종료합니다. `krx-quotes`는 proxy에서 client당 최대 64 ticker와 query/client 형식을 검사하고, 원격 client 16개 상한과 local/remote/Signal을 합친 실제 64-ticker capacity는 backend `KrxQuoteService`에서 원자적으로 관리합니다. `64`는 요청 형식상 최대치이며, 실제 허용 여부는 Signal baseline과 local/remote active lease의 **고유 ticker 합집합**이 64개 이내인지 backend가 판단합니다. 따라서 baseline 2개를 요청에 포함한 64-ticker Dashboard도 물리 universe가 64개라면 정상 허용될 수 있고, 반대로 64개가 모두 non-baseline이면 capacity 초과로 거절될 수 있습니다. capacity가 부족한 remote 요청은 422로 거절되고 기존 local lease를 밀어내지 않습니다. 반대로 local 요청은 필요하면 오래된 remote lease를 회수하므로 remote 선점 때문에 정상 local 요청이 거절되지 않습니다. 따라서 8002를 "모든 GET을 허용하는 read-only API"로 해석하지 않습니다.
 
 외부에서 Market AI가 표시되려면:
 
@@ -295,7 +295,7 @@ https://tkfkd3226-cell.github.io
 https://node.tail60a98e.ts.net/api/health
 ```
 
-원격 경계 QA에서는 위 GET이 정상이어야 하고, allowlist 밖 GET은 404, 잘못된 ticker/과도한 ticker 요청은 422, 원격 client 수 또는 원격 ticker 합집합 상한 초과는 429, Tailscale URL을 통한 POST/PUT/PATCH/DELETE는 8002 proxy에서 405로 차단되어야 합니다. 원격 `client_id`는 backend에서 `remote-<hash>` namespace로 관측되어야 하며, Bridge의 실제 POST는 localhost 8001 direct path를 계속 사용합니다.
+원격 경계 QA에서는 위 GET이 정상이어야 하고, allowlist 밖 GET은 404, 잘못된 ticker/과도한 ticker 요청은 422, backend의 remote client 수 또는 남은 ticker capacity 초과도 422, Tailscale URL을 통한 POST/PUT/PATCH/DELETE는 8002 proxy에서 405로 차단되어야 합니다. 원격 `client_id`는 backend에서 `remote-<hash>` namespace로 관측되어야 합니다. 원격 62 ticker를 먼저 점유한 뒤 서로 다른 local ticker를 요청하는 반례에서도 local이 성공하고 remote lease가 회수되어야 합니다. 또한 재시작 직후 remote가 먼저 붙어도 local bootstrap은 유지되어야 하고, remote 요청만으로 `dashboard_quote_universe.json`이 바뀌면 안 됩니다. Bridge의 실제 POST는 localhost 8001 direct path를 계속 사용합니다.
 
 ---
 
@@ -340,8 +340,8 @@ Dashboard의 현재 보유 ticker는 Dashboard가 소유하며 Market AI에 `cli
 - Market AI/Bridge 시작 직후에는 현재 Dashboard 보유 10종목을 startup warm-up 대상으로 선구독하고, 첫 Dashboard 요청부터는 실제 active client들의 보유 ticker 합집합이 authoritative universe가 됩니다. `client_id + []`도 정상적인 empty universe입니다.
 - Signal baseline이 Dashboard 보유 universe에서 빠져도 물리 stream/history는 유지할 수 있지만 Dashboard valuation quote cache는 폐기합니다. 다시 보유종목에 편입되면 다른 종목과 동일하게 새 실제 `SC_R` tick 전까지 `WARMING`입니다.
 - 숫자뿐 아니라 `0163Y0`처럼 영문이 포함된 6자리 KRX ticker도 문자열로 처리합니다.
-- PC / 폰 / 복수 탭의 ticker set은 active client lease 기준 합집합으로 관리하며 현재 lease는 120초입니다.
-- Market AI 시작 시 보유종목 bootstrap은 Python/C#에 종목을 하드코딩하지 않고 형제 `investment-dashboard/data/portfolio.json`의 현재 `qty > 0` 보유종목과 이름을 읽습니다. Dashboard 저장소를 일시적으로 읽을 수 없을 때만 `market-ai/db/dashboard_quote_universe.json`의 마지막 authoritative universe를 fallback으로 사용합니다. 이 runtime state는 Git 추적 대상이 아닙니다.
+- PC / 폰 / 복수 탭의 ticker set은 active client lease 기준 합집합으로 관리하며 현재 lease는 120초입니다. 원격 `remote-<hash>` client는 최대 16개이며 local/remote admission은 backend의 같은 lock에서 처리합니다. local request가 capacity를 필요로 하면 remote lease보다 우선합니다.
+- Market AI 시작 시 보유종목 bootstrap은 Python/C#에 종목을 하드코딩하지 않고 형제 `investment-dashboard/data/portfolio.json`의 현재 `qty > 0` 보유종목과 이름을 읽습니다. Dashboard 저장소를 일시적으로 읽을 수 없을 때만 `market-ai/db/dashboard_quote_universe.json`의 마지막 **local-only authoritative universe**를 fallback으로 사용합니다. bootstrap은 첫 admission 성공 local Dashboard request까지 로컬 예약 용량으로 유지되므로 원격/Tailscale quote GET이 먼저 와도 해제되지 않으며, 원격 요청은 이 runtime state를 쓰지 않습니다. 로컬 복수 탭의 동시 write는 현재 local union으로 직렬화됩니다. 이 runtime state는 Git 추적 대상이 아닙니다.
 - 특정 ticker의 subscription 장애는 전체 quote 실패로 확대하지 않고 해당 ticker만 `stale/unusable`로 처리합니다.
 - subscription이 복구돼도 새 실제 `SC_R` tick을 받기 전에는 장애 전 quote를 다시 usable로 부활시키지 않습니다.
 - 저유동 종목은 마지막 tick이 오래됐다는 이유만으로 자동 stale 처리하지 않습니다.
@@ -764,7 +764,7 @@ http://localhost:8000/
 https://node.tail60a98e.ts.net/api/health
 ```
 
-원격 경계 QA에서는 위 GET이 정상이어야 하고, allowlist 밖 GET은 404, 잘못된 ticker/과도한 ticker 요청은 422, 원격 client 수 또는 원격 ticker 합집합 상한 초과는 429, Tailscale URL을 통한 POST/PUT/PATCH/DELETE는 8002 proxy에서 405로 차단되어야 합니다. 원격 `client_id`는 backend에서 `remote-<hash>` namespace로 관측되어야 하며, Bridge의 실제 POST는 localhost 8001 direct path를 계속 사용합니다.
+원격 경계 QA에서는 위 GET이 정상이어야 하고, allowlist 밖 GET은 404, 잘못된 ticker/과도한 ticker 요청은 422, backend의 remote client 수 또는 남은 ticker capacity 초과도 422, Tailscale URL을 통한 POST/PUT/PATCH/DELETE는 8002 proxy에서 405로 차단되어야 합니다. 원격 `client_id`는 backend에서 `remote-<hash>` namespace로 관측되어야 합니다. 원격 62 ticker를 먼저 점유한 뒤 서로 다른 local ticker를 요청하는 반례에서도 local이 성공하고 remote lease가 회수되어야 합니다. 또한 재시작 직후 remote가 먼저 붙어도 local bootstrap은 유지되어야 하고, remote 요청만으로 `dashboard_quote_universe.json`이 바뀌면 안 됩니다. Bridge의 실제 POST는 localhost 8001 direct path를 계속 사용합니다.
 
 Local Suite 종료 contract:
 

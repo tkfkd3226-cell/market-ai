@@ -1,8 +1,9 @@
-../../Scripts/curl-cffi.exe,sha256=HeTSGDsn5ndGHHK9cUlD0anOOXb-TuvmbPsSkJfDYxA,108363
+../../Scripts/curl-cffi.exe,sha256=DT0TZQixt5xd-_LOLxtmaUtB7d-IRe2ftPOnmHjsYfY,108437
 curl_cffi-0.16.0.dist-info/DELVEWHEEL,sha256=eHhM3dWHt8DFtnk-Az1HlmcmuCVh8C4supYg22lmDMA,446
 curl_cffi-0.16.0.dist-info/INSTALLER,sha256=zuuue4knoyJ-UwPPXg8fezS7VCrXJQrAP7zeNuwvFQg,4
 curl_cffi-0.16.0.dist-info/METADATA,sha256=BdndBuXErVjIh7f1kQ2euO7kZrOtlSBYpooJcicCAGI,17867
 curl_cffi-0.16.0.dist-info/RECORD,,
+curl_cffi-0.16.0.dist-info/REQUESTED,sha256=47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU,0
 curl_cffi-0.16.0.dist-info/WHEEL,sha256=oYA9VLAow2IZcwL9bG89Gqb6ftG-7akd-o5_ur6uKxY,100
 curl_cffi-0.16.0.dist-info/entry_points.txt,sha256=HzTwoUpbiKIo5uJrqnxPk5OdxZ0PhT0dPTSqUP8Js70,49
 curl_cffi-0.16.0.dist-info/licenses/LICENSE,sha256=R-bOlsAhcHWMFhZOZvkgYg22FFI9ZC66UAC6DHqivm4,1129
