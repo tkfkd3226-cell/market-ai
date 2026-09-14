@@ -364,6 +364,7 @@ Dashboard의 현재 보유 ticker는 Dashboard가 소유하며 Market AI에 `cli
 - 특정 ticker의 subscription 장애는 전체 quote 실패로 확대하지 않고 해당 ticker만 `stale/unusable`로 처리합니다.
 - subscription이 복구돼도 새 실제 `SC_R` tick을 받기 전에는 장애 전 quote를 다시 usable로 부활시키지 않습니다.
 - 저유동 종목은 마지막 tick이 오래됐다는 이유만으로 자동 stale 처리하지 않습니다.
+- Dashboard는 ticker별 `market_state`를 기준으로 quote 의미를 판단합니다. 특히 **15:30~20:00에는 개별주식 `extended`와 ETF `closed`가 동시에 존재**하므로 응답의 top-level `market_state` 하나만 보고 전체 보유종목을 장마감/시간외로 판정하지 않습니다.
 
 Dashboard 적용 규칙:
 
@@ -372,7 +373,7 @@ KST 오늘
 → usable=true quote를 화면 평가 계산에 overlay
    - 정규장(open): state=live
    - 개별주식 15:30~20:00 extended: state=live
-   - 신뢰 가능한 당일 session 종료: state=closed
+   - ETF 15:30 이후 / 개별주식 20:00 이후: state=closed
 
 특정 ticker warming/stale/unavailable/error
 → 해당 ticker만 JSON 저장값 fallback
