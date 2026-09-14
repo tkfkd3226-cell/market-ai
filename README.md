@@ -3,7 +3,7 @@
 > **문서 성격**: 이 README는 `market-ai` **운영 Runtime 저장소의 실행 · 상태 확인 · 장애 분리 · 데이터 보존 · 배포 파일 구성**을 설명합니다.  
 > Python/C#/PyInstaller의 상세 빌드·정리 contract는 `market-ai-dev/market_ai_project_handover.md`에서 관리하고, 이 README에는 운영자가 필요한 재빌드 매핑만 간단히 적습니다.
 >
-> **운영 환경**: Windows + KIS eFriend Expert + x86 ActiveX Bridge를 사용하는 대상 PC입니다. 최종 runtime은 Python-free입니다. 로컬 Bridge/유지보수 API는 `127.0.0.1:8001`을 사용하고, 외부 Dashboard는 Tailscale Serve가 연결된 `127.0.0.1:8002` read-only proxy를 통해 조회 결과만 소비합니다.
+> **운영 환경**: Windows + KIS eFriend Expert + x86 ActiveX Bridge를 사용하는 대상 PC입니다. 최종 runtime은 Python-free입니다. 로컬 Bridge/유지보수 API는 `127.0.0.1:8001`을 사용하고, 외부 Dashboard는 Tailscale Serve가 연결된 `127.0.0.1:8002` GET-only proxy를 통해 조회 결과만 소비합니다.
 
 로컬 Windows PC에서 시장 데이터, eFriend 실시간 KOSPI·KOSPI200 선물·동적 KRX 보유종목, Signal Engine, Backtest, Calibration을 통합해 **AI Market Signal과 보유종목 실시간 현재가**를 투자 대시보드에 제공하는 프로젝트입니다.
 
@@ -27,7 +27,7 @@ Desktop shortcut
 → KisKospi200Bridge.exe (KIS eFriend Market Bridge · x86)
 → MarketAI.exe + _internal/
 → FastAPI 127.0.0.1:8001
-→ Remote read-only proxy 127.0.0.1:8002
+→ Remote GET-only proxy 127.0.0.1:8002
 → Tailscale 상태 / Serve 자가복구 (optional, :8002만 공개)
 → Dashboard embedded HTTP :8000
 → 브라우저 / 시스템 트레이
@@ -51,13 +51,13 @@ Market AI API 자체는 계속 다음 loopback 주소에서 실행됩니다.
 http://127.0.0.1:8001
 ```
 
-Local Suite는 원격 Dashboard용으로 별도 read-only proxy도 loopback에 엽니다.
+Local Suite는 원격 Dashboard용으로 별도 GET-only proxy도 loopback에 엽니다.
 
 ```text
 http://127.0.0.1:8002
 ```
 
-8002는 `GET / HEAD / OPTIONS`만 8001로 전달하며 `POST / PUT / PATCH / DELETE`는 405로 차단합니다. KIS Bridge의 tick/heartbeat와 로컬 유지보수 write API는 기존대로 8001에 직접 연결하고 Tailscale Serve에는 노출하지 않습니다.
+8002는 원격 Dashboard가 실제 사용하는 조회 API만 allowlist로 노출하고 해당 경로의 `GET / HEAD / OPTIONS`만 8001로 전달합니다. `POST / PUT / PATCH / DELETE`는 405로 차단하고, allowlist 밖의 GET도 backend에 전달하지 않습니다. `/api/market-data/krx-quotes`는 정상 Dashboard의 탭별 lease 의미를 유지하되 원격 `client_id`를 별도 namespace의 고정 길이 hash로 바꿔 로컬 lease와 충돌하지 않게 합니다. 또한 원격 client 수와 ticker 합집합을 proxy에서 유한하게 제한하여 임의 query/client가 lease record를 무한히 누적하거나 backend의 64-ticker 물리 한도를 초과시키지 못하게 합니다. 이 경계는 로컬 `portfolio.json`의 갱신 시점에 의존하지 않으므로 새 보유종목도 정상적인 6자리 KRX ticker라면 즉시 요청할 수 있습니다. KIS Bridge의 tick/heartbeat와 로컬 유지보수 write API는 기존대로 8001에 직접 연결하고 Tailscale Serve에는 노출하지 않습니다.
 
 외부 Python 실행 파일이나 `python -m uvicorn`, `python -m http.server`, runtime pip 설치에는 의존하지 않습니다.
 
@@ -199,7 +199,7 @@ KIS eFriend Market Bridge
 → AxInterop.ITGExpertCtlLib.dll
 → Interop.ITGExpertCtlLib.dll
 
-Investment Local Suite / Tailscale read-only proxy
+Investment Local Suite / Tailscale GET-only proxy
 → build-investment-local-suite.ps1
 → InvestmentLocalSuite.exe + _suite_internal/
 ```
@@ -227,7 +227,7 @@ https://node.tail60a98e.ts.net
 Tailscale Serve
         ↓
 http://127.0.0.1:8002
-        ↓  read-only proxy (GET / HEAD / OPTIONS)
+        ↓  GET-only proxy (허용 API의 GET / HEAD / OPTIONS)
 http://127.0.0.1:8001
         ↓
 MarketAI.exe
@@ -239,7 +239,19 @@ Tailscale Serve endpoint:
 https://node.tail60a98e.ts.net
 ```
 
-Market AI API의 8001/8002 포트를 인터넷에 직접 포트포워딩하지 않습니다. FastAPI 전체 API는 `127.0.0.1:8001`에만 바인딩하고, Tailscale Serve는 Local Suite의 `127.0.0.1:8002` read-only proxy만 tailnet 내부 HTTPS로 제공합니다. 따라서 원격 write method는 FastAPI에 도달하지 않습니다.
+Market AI API의 8001/8002 포트를 인터넷에 직접 포트포워딩하지 않습니다. FastAPI 전체 API는 `127.0.0.1:8001`에만 바인딩하고, Tailscale Serve는 Local Suite의 `127.0.0.1:8002` GET-only proxy만 tailnet 내부 HTTPS로 제공합니다. 따라서 원격 write method는 FastAPI에 도달하지 않습니다.
+
+8002 원격 allowlist는 현재 다음 Dashboard 조회면으로 제한합니다.
+
+```text
+/api/health
+/api/signal/latest
+/api/market-data/snapshot
+/api/market-data/krx-quotes
+/api/bridge/kis-efriend/status
+```
+
+이 목록 밖의 GET은 404로 proxy에서 종료합니다. `krx-quotes`는 원격 client 16개, client당 ticker 62개, 원격 ticker 합집합 62개를 상한으로 두고 120초 lease 만료를 proxy에서도 추적합니다. `62`는 backend 물리 한도 64개에서 항상 유지되는 Signal baseline 2개(`005930`, `000660`)를 제외한 최대 Dashboard universe와 맞춘 값입니다. 제한 초과는 backend에 전달하기 전에 429/422로 종료합니다. 따라서 8002를 "모든 GET을 허용하는 read-only API"로 해석하지 않습니다.
 
 외부에서 Market AI가 표시되려면:
 
@@ -253,9 +265,9 @@ PC나 Tailscale이 꺼져 있어도 GitHub Pages 대시보드의 일반 기능�
 Local Suite는 startup에서 Tailscale service / tailnet 연결 / Serve 설정을 확인합니다.
 
 - 정상 Serve가 이미 있으면 다시 쓰지 않습니다.
-- Serve 설정이 없거나 `127.0.0.1:8002` read-only proxy를 가리키지 않으면 `tailscale serve --bg 8002` 복구를 best-effort로 시도합니다.
-- 8002 read-only proxy 자체가 기동하지 못하면 원격 기능을 **fail-closed**로 두고 canonical Serve root를 `tailscale serve off`로 해제합니다. 과거 `Serve → 8001` 설정이 재사용되어 write API가 다시 원격 노출되는 것을 허용하지 않습니다.
-- read-only Serve 복구/검증 실패 때 legacy `proxy http://127.0.0.1:8001`이 확인되면 해당 Serve를 해제하고 로컬 8001만 유지합니다.
+- Serve 설정이 없거나 `127.0.0.1:8002` GET-only proxy를 가리키지 않으면 `tailscale serve --bg 8002` 복구를 best-effort로 시도합니다.
+- 8002 GET-only proxy 자체가 기동하지 못하면 원격 기능을 **fail-closed**로 두고 canonical Serve root를 `tailscale serve off`로 해제합니다. 과거 `Serve → 8001` 설정이 재사용되어 write API가 다시 원격 노출되는 것을 허용하지 않습니다.
+- GET-only Serve 복구/검증 실패 때 legacy `proxy http://127.0.0.1:8001`이 확인되면 해당 Serve를 해제하고 로컬 8001만 유지합니다.
 - Tailscale service가 멈춰 있으면 Windows `Tailscale` service 시작을 시도할 수 있습니다.
 - `NeedsLogin`, Tailscale 미설치, Serve/remote health 실패는 원격 기능 경고이며 로컬 Market AI 기동 실패로 처리하지 않습니다.
 
@@ -275,7 +287,7 @@ https://tkfkd3226-cell.github.io
 - 모든 Origin을 의미하는 `*`로 넓히지 않고 실제 대시보드 Origin을 명시적으로 허용하는 현재 방식을 유지합니다.
 - GitHub Pages host가 바뀌면 `app.py`의 CORS Origin도 함께 수정해야 합니다.
 - `app.py`를 수정한 경우 `build-market-ai.ps1`로 다시 빌드하고 **MarketAI.exe + `_internal/`을 함께 교체**해야 실제 런타임에 반영됩니다.
-- CORS는 browser origin 허용 규칙일 뿐 write 접근제어 수단이 아닙니다. 원격 write 차단은 Local Suite의 8002 read-only proxy가 담당합니다.
+- CORS는 browser origin 허용 규칙일 뿐 write 접근제어 수단이 아닙니다. 원격 write 차단은 Local Suite의 8002 GET-only proxy가 담당합니다.
 
 현재 원격 조회가 정상인지 확인할 때는 Tailscale 연결 상태에서 다음과 같은 API를 직접 확인할 수 있습니다.
 
@@ -283,7 +295,7 @@ https://tkfkd3226-cell.github.io
 https://node.tail60a98e.ts.net/api/health
 ```
 
-원격 경계 QA에서는 위 GET이 정상이어야 하고, Tailscale URL을 통한 POST/PUT/PATCH/DELETE는 8002 proxy에서 405로 차단되어야 합니다. Bridge의 실제 POST는 localhost 8001 direct path를 계속 사용합니다.
+원격 경계 QA에서는 위 GET이 정상이어야 하고, allowlist 밖 GET은 404, 잘못된 ticker/과도한 ticker 요청은 422, 원격 client 수 또는 원격 ticker 합집합 상한 초과는 429, Tailscale URL을 통한 POST/PUT/PATCH/DELETE는 8002 proxy에서 405로 차단되어야 합니다. 원격 `client_id`는 backend에서 `remote-<hash>` namespace로 관측되어야 하며, Bridge의 실제 POST는 localhost 8001 direct path를 계속 사용합니다.
 
 ---
 
@@ -406,7 +418,7 @@ Dashboard 현재 보유종목 live valuation   ✅
 Dashboard 로컬 Market AI 조회            ✅
 Dashboard 원격 Tailscale 조회            ✅
 Local Suite Tailscale Serve 자가복구      ✅
-Remote read-only proxy (:8002)           ✅
+Remote GET-only proxy (:8002)           ✅
 GitHub Pages CORS 허용                   ✅
 Python-free target runtime               ✅
 External Python process 불필요           ✅
@@ -752,7 +764,7 @@ http://localhost:8000/
 https://node.tail60a98e.ts.net/api/health
 ```
 
-원격 경계 QA에서는 위 GET이 정상이어야 하고, Tailscale URL을 통한 POST/PUT/PATCH/DELETE는 8002 proxy에서 405로 차단되어야 합니다. Bridge의 실제 POST는 localhost 8001 direct path를 계속 사용합니다.
+원격 경계 QA에서는 위 GET이 정상이어야 하고, allowlist 밖 GET은 404, 잘못된 ticker/과도한 ticker 요청은 422, 원격 client 수 또는 원격 ticker 합집합 상한 초과는 429, Tailscale URL을 통한 POST/PUT/PATCH/DELETE는 8002 proxy에서 405로 차단되어야 합니다. 원격 `client_id`는 backend에서 `remote-<hash>` namespace로 관측되어야 하며, Bridge의 실제 POST는 localhost 8001 direct path를 계속 사용합니다.
 
 Local Suite 종료 contract:
 
