@@ -636,22 +636,112 @@ html.monitor-embedded .monitor-header__tools {
 }
 
 @media (max-width: 760px) {
+  /* Embedded Phone Width · direct /monitor/의 320px 최소폭은 유지하되,
+     Dashboard iframe 안에서는 실제 frame 폭을 넘는 intrinsic/document 폭을 만들지 않는다. */
+  html.monitor-embedded,
+  html.monitor-embedded body {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  html.monitor-embedded .monitor-shell,
+  html.monitor-embedded .monitor-header,
+  html.monitor-embedded .market-grid,
+  html.monitor-embedded .holdings-section,
+  html.monitor-embedded .holdings-grid,
+  html.monitor-embedded .monitor-footer {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  html.monitor-embedded .market-grid > *,
+  html.monitor-embedded .holdings-grid > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Embedded Phone Card Containment · 카드 내부 intrinsic width가 2열 track을
+     밀어내지 못하게 하고, 긴 상태/세션/값은 카드 경계 안에서만 축약한다. */
+  html.monitor-embedded .market-card,
+  html.monitor-embedded .holding-card {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    contain: inline-size;
+  }
+
+  html.monitor-embedded :is(
+    .market-card__header,
+    .market-card__header > div,
+    .market-card__value,
+    .metric-list,
+    .metric-row,
+    .holding-card__header,
+    .holding-card__identity,
+    .holding-card__value,
+    .holding-card__footer
+  ) {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  html.monitor-embedded .metric-row {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+
+  html.monitor-embedded .metric-row dd {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  html.monitor-embedded .market-card__header > .status-badge {
+    max-width: 50%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  html.monitor-embedded .holding-card__value span,
+  html.monitor-embedded .holding-card__footer {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .monitor-shell {
     padding: 0;
     gap: var(--space-2);
   }
 
   .monitor-header {
+    min-width: 0;
+    max-width: 100%;
     min-height: 48px;
 
     padding: 0 var(--space-1);
   }
 
+  .monitor-header__title {
+    min-width: 0;
+  }
+
   .monitor-header h1 {
+    overflow: hidden;
     font-size: var(--font-md);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .monitor-header__tools {
+    min-width: 0;
+    flex: 0 0 auto;
     gap: var(--space-2);
   }
 
