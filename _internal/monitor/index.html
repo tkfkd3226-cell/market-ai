@@ -7,31 +7,7 @@
 
   <title>KIS 실시간 모니터</title>
 
-  <style id="monitor-css-bootstrap">
-    html.monitor-css-loading body { visibility: hidden; }
-  </style>
-  <script>
-    document.documentElement.classList.add("monitor-css-loading");
-    (async () => {
-      try {
-        const response = await fetch("./monitor.css", { cache: "no-store" });
-        if (!response.ok) throw new Error(`monitor.css HTTP ${response.status}`);
-        const style = document.createElement("style");
-        style.id = "monitor-runtime-css";
-        style.textContent = await response.text();
-        document.head.appendChild(style);
-      } catch (error) {
-        console.error("monitor.css no-store load failed; using stylesheet fallback", error);
-        const fallback = document.createElement("link");
-        fallback.rel = "stylesheet";
-        fallback.href = "./monitor.css";
-        document.head.appendChild(fallback);
-      } finally {
-        document.documentElement.classList.remove("monitor-css-loading");
-        document.getElementById("monitor-css-bootstrap")?.remove();
-      }
-    })();
-  </script>
+  <link rel="stylesheet" href="./monitor.css">
   <script src="./monitor.js" defer></script>
 </head>
 

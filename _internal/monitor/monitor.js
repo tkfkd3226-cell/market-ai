@@ -1219,7 +1219,10 @@ async function fetchMonitorData() {
   const controller = new AbortController();
   state.requestController = controller;
   const timeoutId = window.setTimeout(
-    () => controller.abort(),
+    () => {
+      controller.monitorAbortReason = "timeout";
+      controller.abort();
+    },
     REQUEST_TIMEOUT_MS,
   );
 
@@ -1251,6 +1254,13 @@ async function fetchMonitorData() {
       state.bridgeConnected ? null : "Bridge 지연",
     );
     renderMonitor();
+  } catch (error) {
+    if (error?.name === "AbortError" && controller.monitorAbortReason === "timeout") {
+      const timeoutError = new Error("Monitor API request timed out");
+      timeoutError.name = "TimeoutError";
+      throw timeoutError;
+    }
+    throw error;
   } finally {
     window.clearTimeout(timeoutId);
     if (state.requestController === controller) {
@@ -1305,6 +1315,7 @@ function stopPolling() {
   if (state.requestController) {
     const controller = state.requestController;
     state.requestController = null;
+    controller.monitorAbortReason = "lifecycle";
     controller.abort();
   }
 }
