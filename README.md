@@ -5,7 +5,7 @@
 >
 > **운영 환경**: Windows + KIS eFriend Expert + x86 ActiveX Bridge를 사용하는 대상 PC입니다. 최종 runtime은 Python-free입니다. 로컬 Bridge/유지보수 API는 `127.0.0.1:8001`을 사용하고, 외부 Dashboard는 Tailscale Serve가 연결된 `127.0.0.1:8002` GET-only proxy를 통해 조회 결과만 소비합니다.
 
-로컬 Windows PC에서 시장 데이터, eFriend 실시간 KOSPI·KOSPI200 선물·동적 KRX 보유종목, Signal Engine, Backtest, Calibration을 통합해 **AI Market Signal과 보유종목 실시간 현재가**를 투자 대시보드에 제공하는 프로젝트입니다.
+로컬 Windows PC에서 시장 데이터, eFriend 실시간 KOSPI·KOSPI200 선물·동적 KRX 보유종목, Signal Engine, Backtest, Calibration을 통합해 **AI Market Signal과 보유종목 당일 현재가(정규장·시간외·장마감)**를 투자 대시보드에 제공하는 프로젝트입니다.
 
 > 자동 주문 시스템이 아닙니다.  
 > 주문 API, 계좌번호, 계좌 비밀번호를 사용하지 않습니다.
@@ -111,6 +111,7 @@ market-ai-dev/monitor/
 - `business_time`은 실제 `HHMMSS` 범위만 유효하며 `888888` 같은 값은 실제 시각처럼 표시하지 않습니다. 유효값이 없으면 모니터는 `observed_at`의 KST 시각을 fallback으로 사용할 수 있습니다.
 - Phone에서도 **K200/KOSPI 시장 카드와 보유종목 카드 모두 한 줄 2개(2열)**를 유지합니다. 760px 이하/420px 이하에서도 보유종목을 1열로 강제하지 않습니다.
 - Web Monitor polling 10초, Dashboard polling 10초, client lease 120초, dynamic KRX DB snapshot write throttle 30초는 서로 다른 contract입니다.
+- 투자 Dashboard는 Market AI 서버 연결이 확인된 동안에만 Web/Tablet Topbar와 Phone `관리` 메뉴에 공통 명칭 **`실시간 시세`** 진입점을 노출합니다. 이 진입점은 tailnet Web Monitor `https://node.tail60a98e.ts.net/monitor/`를 Dashboard 공통 modal shell 안의 최대 **1280×720** embedded monitor로 열며, Market AI 연결이 끊기면 진입점을 숨기고 열린 monitor modal도 닫습니다. 세부 버튼·메뉴·modal token/lifecycle 계약은 `investment-dashboard/main_dashboard_maintenance_handover.md`가 Source of Truth입니다.
 
 ---
 
@@ -350,7 +351,7 @@ SOX 화면 표시도 현재 `INDEX:SOX` 현물지수를 사용합니다. `FUTURE
 
 이 Signal panel은 선택한 과거 투자 기준일과 별개로 **현재 시점의 Market AI**를 표시합니다.
 
-## 3.2 보유종목 실시간 현재가 / 평가 overlay
+## 3.2 보유종목 당일 현재가 / 평가 overlay
 
 Dashboard의 현재 보유 ticker는 Dashboard가 소유하며 Market AI에 `client_id`와 함께 quote를 요청합니다. 현재 Dashboard의 Market AI signal 조회와 보유종목 live valuation 조회는 visible 상태에서 **10초 주기**를 사용하고 visible 복귀 시 즉시 갱신합니다. KIS realtime 수신 자체는 polling과 별개로 계속 실시간입니다.
 
@@ -365,6 +366,7 @@ Dashboard의 현재 보유 ticker는 Dashboard가 소유하며 Market AI에 `cli
 - subscription이 복구돼도 새 실제 `SC_R` tick을 받기 전에는 장애 전 quote를 다시 usable로 부활시키지 않습니다.
 - 저유동 종목은 마지막 tick이 오래됐다는 이유만으로 자동 stale 처리하지 않습니다.
 - Dashboard는 ticker별 `market_state`를 기준으로 quote 의미를 판단합니다. 특히 **15:30~20:00에는 개별주식 `extended`와 ETF `closed`가 동시에 존재**하므로 응답의 top-level `market_state` 하나만 보고 전체 보유종목을 장마감/시간외로 판정하지 않습니다.
+- `KrxQuoteService`는 process-memory quote를 우선합니다. 다만 해당 ticker가 `closed`이고 process-memory quote가 없거나 unusable하더라도 **현재 KST 날짜의 exact `kis-efriend:SC_R:<ticker>` durable `MarketSnapshot` + Bridge connected + 해당 subscription 정상 + fresh-tick 재확인 요구 없음**을 모두 만족하면 `state=closed, usable=true`의 장마감 quote로 복원할 수 있습니다. `open/extended`, 전일 snapshot, Yahoo/proxy source, subscription 오류/미구독, 장애 복구 뒤 새 tick 대기 상태에는 이 durable closed fallback을 적용하지 않습니다.
 
 Dashboard 적용 규칙:
 
@@ -382,7 +384,7 @@ KST 오늘
 → 오늘 realtime quote를 절대 overlay하지 않고 historical JSON 유지
 ```
 
-live quote는 **화면용 메모리 overlay**입니다.
+오늘 `usable=true`인 Market AI quote는 **화면용 overlay**입니다. 정상 `live/extended`는 process-memory quote를 사용하고, 위의 제한된 `closed` 복원 경로에서는 당일 KIS durable snapshot이 overlay source가 될 수 있습니다.
 
 Market AI가 소유하는 것:
 
@@ -407,11 +409,11 @@ Dashboard가 계속 소유하는 것:
 historical snapshot
 ```
 
-live quote를 `prices.json`, `performance_snapshots.json`, Pension JSON이나 GAS에 저장하지 않습니다.
+Market AI overlay quote를 `prices.json`, `performance_snapshots.json`, Pension JSON이나 GAS에 저장하지 않습니다.
 
-Dashboard Hero 제목행은 날짜 기준만 표시하며 `LIVE / CLOSED / STALE / WARMING / JSON` 상태 문자열은 노출하지 않습니다. quote/fallback 판정은 내부 state로 유지하고, 종목/상품 라벨 셀의 source tooltip에서 Market AI·JSON·당일 매수원가 등 개별 현재가 출처와 관측시각/기준일을 확인할 수 있습니다.
+Dashboard Hero 제목행은 `LIVE / CLOSED / STALE / WARMING / JSON` 같은 raw 상태 문자열을 노출하지 않습니다. 기준문구는 실제 계산에 적용된 usable quote coverage를 따르며, **ETF `closed` + 개별주식 `live/extended`가 섞여 있어도 요청 종목이 모두 Market AI `usable=true`이면 `일부 실시간 반영`으로 낮추지 않습니다.** quote/fallback 판정은 내부 state로 유지하고, 종목/상품 라벨 셀의 source tooltip에서 Market AI·JSON·당일 매수원가 등 개별 현재가 출처와 관측시각/기준일을 확인할 수 있습니다.
 
-KRX Action modal, 퇴직연금 금액조정 modal, 차트 확대 등 전체 render가 사용자 작업을 방해할 수 있는 상태에서는 live state만 갱신하고 Dashboard 전체 rerender를 보류했다가 안전해진 뒤 pending render를 반영합니다.
+KRX Action modal, 퇴직연금 금액조정 modal, 차트 확대 등 전체 render가 사용자 작업을 방해할 수 있는 상태에서는 Market AI valuation state만 갱신하고 Dashboard 전체 rerender를 보류했다가 안전해진 뒤 pending render를 반영합니다.
 
 Dashboard frontend의 상세 UI/responsive/lifecycle contract는 `investment-dashboard` 프로젝트의 `main_dashboard_maintenance_handover.md`가 Source of Truth입니다.
 
@@ -439,12 +441,13 @@ KRX 휴장일/session 정책                 ✅
 개별주식 15:30~20:00 시간외 상태          ✅
 ETF·KOSPI 15:30 정규장 마감 유지          ✅
 Dashboard endpoint 실패 격리             ✅
-Dashboard 현재 보유종목 live valuation   ✅
+Dashboard 보유종목 당일 valuation          ✅ live/extended/closed
 Dashboard 로컬 Market AI 조회            ✅
 Dashboard 원격 Tailscale 조회            ✅
 Local Suite Tailscale Serve 자가복구      ✅
 Remote GET-only proxy (:8002)           ✅
 Tailscale Web Monitor `/monitor/`         ✅
+Dashboard `실시간 시세` embedded Monitor    ✅ 1280×720 max
 GitHub Pages CORS 허용                   ✅
 Python-free target runtime               ✅
 External Python process 불필요           ✅
@@ -578,7 +581,7 @@ forward_success_count
 
 Bridge 전체가 살아 있어도 특정 ticker stream만 장애면 그 ticker만 unusable로 처리합니다. 이후 `subscribed=true`로 복구됐더라도 새 실제 tick을 받을 때까지 장애 전 quote를 다시 live/closed로 사용하지 않습니다.
 
-동적 보유종목은 Signal/Backtest history를 늘리지 않고 Bridge 모니터 재시작 복원을 위한 최신 `MarketSnapshot`만 최대 30초 단위로 저장합니다. eFriend realtime 입력의 거래소 `business_time`은 **실제 `HHMMSS` 범위(`00:00:00`~`23:59:59`)일 때만** 저장·표시합니다. `888888`처럼 6자리지만 유효하지 않은 값은 `null`로 정규화하고 DB에도 저장하지 않습니다. 재시작 후 모니터의 `시간`은 유효한 시장 시각을 우선 복원하고, 없으면 `observed_at` KST 시각을 fallback으로 사용할 수 있습니다. 이 durable snapshot은 모니터 표시용이며 Dashboard valuation의 process-memory quote로 자동 승격하지 않습니다. 장마감 후 재시작 시에는 가장 최근 완료 KRX 거래일 값만 `장마감`으로 복원합니다.
+동적 보유종목은 Signal/Backtest history를 늘리지 않고 Bridge Monitor와 Dashboard 장마감 재시작 복원을 위한 최신 `MarketSnapshot`만 최대 30초 단위로 저장합니다. eFriend realtime 입력의 거래소 `business_time`은 **실제 `HHMMSS` 범위(`00:00:00`~`23:59:59`)일 때만** 저장·표시합니다. `888888`처럼 6자리지만 유효하지 않은 값은 `null`로 정규화하고 DB에도 저장하지 않습니다. 재시작 후 Monitor의 `시간`은 유효한 시장 시각을 우선 복원하고, 없으면 `observed_at` KST 시각을 fallback으로 사용할 수 있습니다. Monitor는 장마감·재시작 시 가장 최근 완료 KRX 거래일의 durable 값을 `장마감`으로 복원할 수 있습니다. Dashboard `/api/market-data/krx-quotes`는 더 엄격하게 **현재 KST 날짜의 exact KIS `SC_R` snapshot + ticker `market_state=closed` + Bridge connected + subscription 정상 + fresh-tick 재확인 요구 없음**을 모두 만족할 때만 durable snapshot을 `closed + usable=true`로 승격합니다. `open/extended`, 전일·비-KIS snapshot, subscription 장애/미구독, 장애 복구 후 새 tick 대기 상태에서는 승격하지 않고 해당 ticker의 기존 JSON fallback을 유지합니다.
 
 Bridge 네이티브 모니터는 `K200 · KOSPI · 보유종목 실시간 모니터링` 구조로 운영합니다. K200/KOSPI는 `상태 · 세션 · 시간 · 현재가 · 전일대비율`만 표시하고, Dashboard 보유종목은 `정상 / 시간외 / 장마감 / 대기 / 지연 / 오류` lifecycle 요약과 기본 5열 동적 카드로 표시합니다. 사용자 화면에는 `FC_R / CMEC_R / JUC_R / SC_R` 같은 내부 TR/service code나 instrument code를 표시하지 않고 `주간 / 야간 / 정규장 / 시간외 / 장마감`처럼 의미 있는 상태만 표시합니다. Signal baseline은 실제 Dashboard 보유종목이 아닐 때 카드 수에 포함하지 않습니다. 하단은 연결 상태와 마지막 수신 시각만 표시하며 내부 Tick/AI/debug 수치는 로그로 확인합니다.
 
