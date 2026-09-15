@@ -1470,6 +1470,10 @@ function bindEvents() {
 }
 
 function bootstrap() {
+  if (window.parent !== window) {
+    dom.root.classList.add("monitor-embedded");
+  }
+
   applyTheme(
     getPreferredTheme(),
   );

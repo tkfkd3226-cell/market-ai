@@ -200,6 +200,12 @@ time,
   font-size: var(--font-sm);
 }
 
+/* Embedded Dashboard modal only · outer close button과 Monitor theme toggle이 겹치지 않도록
+   header tools 우측에 close-button lane만 예약한다. Direct /monitor/ 화면에는 적용하지 않는다. */
+html.monitor-embedded .monitor-header__tools {
+  padding-right: calc(32px + var(--space-2));
+}
+
 .system-status,
 .connection-state {
   display: inline-flex;
