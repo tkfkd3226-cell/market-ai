@@ -200,8 +200,7 @@ time,
   font-size: var(--font-sm);
 }
 
-/* Embedded Dashboard modal only · outer close button과 Monitor theme toggle이 겹치지 않도록
-   header tools 우측에 close-button lane만 예약한다. Direct /monitor/ 화면에는 적용하지 않는다. */
+/* Embedded modal reserves the outer close-button lane; standalone /monitor/ is unchanged. */
 html.monitor-embedded .monitor-header__tools {
   padding-right: calc(32px + var(--space-2));
 }
@@ -636,8 +635,7 @@ html.monitor-embedded .monitor-header__tools {
 }
 
 @media (max-width: 760px) {
-  /* Embedded Phone Width · direct /monitor/의 320px 최소폭은 유지하되,
-     Dashboard iframe 안에서는 실제 frame 폭을 넘는 intrinsic/document 폭을 만들지 않는다. */
+  /* Embedded iframe may be narrower than the standalone 320px document floor. */
   html.monitor-embedded,
   html.monitor-embedded body {
     width: 100%;
@@ -646,35 +644,15 @@ html.monitor-embedded .monitor-header__tools {
     overflow-x: hidden;
   }
 
-  html.monitor-embedded .monitor-shell,
-  html.monitor-embedded .monitor-header,
-  html.monitor-embedded .market-grid,
-  html.monitor-embedded .holdings-section,
-  html.monitor-embedded .holdings-grid,
-  html.monitor-embedded .monitor-footer {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  html.monitor-embedded .market-grid > *,
-  html.monitor-embedded .holdings-grid > * {
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  /* Embedded Phone Card Containment · 카드 내부 intrinsic width가 2열 track을
-     밀어내지 못하게 하고, 긴 상태/세션/값은 카드 경계 안에서만 축약한다. */
-  html.monitor-embedded .market-card,
-  html.monitor-embedded .holding-card {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    overflow: hidden;
-    contain: inline-size;
-  }
-
   html.monitor-embedded :is(
+    .monitor-shell,
+    .monitor-header,
+    .market-grid,
+    .holdings-section,
+    .holdings-grid,
+    .monitor-footer,
+    .market-grid > *,
+    .holdings-grid > *,
     .market-card__header,
     .market-card__header > div,
     .market-card__value,
@@ -689,12 +667,21 @@ html.monitor-embedded .monitor-header__tools {
     max-width: 100%;
   }
 
+  html.monitor-embedded :is(.monitor-shell, .market-card, .holding-card) {
+    width: 100%;
+  }
+
+  html.monitor-embedded :is(.market-card, .holding-card) {
+    overflow: hidden;
+    contain: inline-size;
+  }
+
   html.monitor-embedded .metric-row {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
   }
 
-  html.monitor-embedded .metric-row dd {
+  html.monitor-embedded :is(.metric-row dd, .holding-card__value span, .holding-card__footer) {
     min-width: 0;
     max-width: 100%;
     overflow: hidden;
@@ -708,13 +695,6 @@ html.monitor-embedded .monitor-header__tools {
     text-overflow: ellipsis;
   }
 
-  html.monitor-embedded .holding-card__value span,
-  html.monitor-embedded .holding-card__footer {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   .monitor-shell {
     padding: 0;
     gap: var(--space-2);
@@ -724,7 +704,6 @@ html.monitor-embedded .monitor-header__tools {
     min-width: 0;
     max-width: 100%;
     min-height: 48px;
-
     padding: 0 var(--space-1);
   }
 
@@ -766,7 +745,7 @@ html.monitor-embedded .monitor-header__tools {
     gap: var(--space-3);
   }
 
-  /* Phone market header · 상태 chip은 제목 행만 차지하고 subtitle은 카드 전체 폭을 사용한다. */
+  /* Status stays on the title row; subtitle keeps the full card width. */
   .market-card__header {
     position: relative;
     display: block;
@@ -804,22 +783,18 @@ html.monitor-embedded .monitor-header__tools {
 
   .holdings-summary {
     align-items: flex-start;
-
     padding: var(--space-3);
-
     flex-direction: column;
     gap: var(--space-2);
   }
 
-  /* Phone lifecycle summary · 7개 집계를 typography 축소 없이 한 줄 horizontal scroll로 유지한다. */
+  /* Keep all lifecycle counts on one line without shrinking their typography. */
   .summary-list {
     width: 100%;
-
     display: grid;
     grid-template-columns: repeat(7, max-content);
     justify-content: space-between;
     align-items: center;
-
     gap: 0;
     white-space: nowrap;
     overflow-x: auto;
@@ -839,13 +814,11 @@ html.monitor-embedded .monitor-header__tools {
   .holdings-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-2);
-
     padding: var(--space-2);
   }
 
   .holding-card {
     min-height: 132px;
-
     padding: var(--space-3);
     gap: var(--space-2);
   }

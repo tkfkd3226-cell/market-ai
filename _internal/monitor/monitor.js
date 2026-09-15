@@ -1401,7 +1401,7 @@ function startClock() {
 
 
 /* =========================================================
-   16. Embedded Size
+   16. Embedded Host Bridge
    ========================================================= */
 
 let embedSizeFrame = 0;
