@@ -11,6 +11,7 @@ const REQUEST_TIMEOUT_MS = 5_000;
 const STALE_AFTER_MS = 90_000;
 
 const THEME_STORAGE_KEY = "market-ai-monitor-theme";
+const EMBED_SIZE_MESSAGE = "market-ai-monitor:content-size";
 
 const STATUS = Object.freeze({
   LIVE: "live",
@@ -68,6 +69,7 @@ const state = {
 
 const dom = {
   root: document.documentElement,
+  shell: document.querySelector(".monitor-shell"),
 
   systemStatus: document.getElementById("system-status"),
   systemStatusText: document.getElementById("system-status-text"),
@@ -1207,6 +1209,7 @@ function renderMonitor() {
   );
 
   renderLastReceived();
+  publishEmbeddedContentSize();
 }
 
 
@@ -1398,7 +1401,52 @@ function startClock() {
 
 
 /* =========================================================
-   16. Lifecycle
+   16. Embedded Size
+   ========================================================= */
+
+let embedSizeFrame = 0;
+
+function publishEmbeddedContentSize() {
+  if (window.parent === window || !dom.shell) {
+    return;
+  }
+
+  if (embedSizeFrame) {
+    window.cancelAnimationFrame(embedSizeFrame);
+  }
+
+  embedSizeFrame = window.requestAnimationFrame(() => {
+    embedSizeFrame = 0;
+    const height = Math.ceil(Math.max(
+      dom.shell.scrollHeight,
+      dom.shell.getBoundingClientRect().height,
+    ));
+    if (height <= 0) {
+      return;
+    }
+    window.parent.postMessage(
+      { type: EMBED_SIZE_MESSAGE, height },
+      "*",
+    );
+  });
+}
+
+function observeEmbeddedContentSize() {
+  if (window.parent === window || !dom.shell) {
+    return;
+  }
+  publishEmbeddedContentSize();
+  if (typeof ResizeObserver === "function") {
+    const observer = new ResizeObserver(publishEmbeddedContentSize);
+    observer.observe(dom.shell);
+  } else {
+    window.addEventListener("resize", publishEmbeddedContentSize, { passive: true });
+  }
+}
+
+
+/* =========================================================
+   17. Lifecycle
    ========================================================= */
 
 function bindEvents() {
@@ -1427,6 +1475,7 @@ function bootstrap() {
   );
 
   bindEvents();
+  observeEmbeddedContentSize();
   startClock();
   startPolling();
 }
