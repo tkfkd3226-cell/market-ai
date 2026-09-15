@@ -670,6 +670,33 @@ time,
     gap: var(--space-3);
   }
 
+  /* Phone market header · 상태 chip은 제목 행만 차지하고 subtitle은 카드 전체 폭을 사용한다. */
+  .market-card__header {
+    position: relative;
+    display: block;
+  }
+
+  .market-card__header > div {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .market-card__header > .status-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+
+  .market-card__title {
+    padding-right: 5.5rem;
+  }
+
+  .market-card__subtitle {
+    white-space: nowrap;
+    word-break: keep-all;
+    overflow-wrap: normal;
+  }
+
   .market-card__value {
     display: grid;
     gap: var(--space-1);
@@ -688,13 +715,29 @@ time,
     gap: var(--space-2);
   }
 
+  /* Phone lifecycle summary · 7개 집계를 typography 축소 없이 한 줄 horizontal scroll로 유지한다. */
   .summary-list {
     width: 100%;
 
-    justify-content: flex-start;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(7, max-content);
+    justify-content: space-between;
+    align-items: center;
 
-    gap: var(--space-2) var(--space-3);
+    gap: 0;
+    white-space: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .summary-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .summary-item {
+    min-width: 0;
+    white-space: nowrap;
   }
 
   .holdings-grid {
@@ -757,63 +800,5 @@ time,
     align-items: flex-start;
     flex-direction: column;
     gap: var(--space-1);
-  }
-}
-/* Market AI Web Monitor · mobile nowrap hotfix
-   - KOSPI200 선물: 우측 상태 칩과 독립시켜 한 줄 유지
-   - 보유종목 상태 요약: 글자 크기는 유지하고 한 줄 고정
-*/
-
-@media (max-width: 760px) {
-  /* Market card header:
-     status badge only occupies the title row; subtitle can use the full card width. */
-  .market-card__header {
-    position: relative;
-    display: block;
-  }
-
-  .market-card__header > div {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .market-card__header > .status-badge {
-    position: absolute;
-    top: 0;
-    right: 0;
-  }
-
-  .market-card__title {
-    padding-right: 5.5rem;
-  }
-
-  .market-card__subtitle {
-    white-space: nowrap;
-    word-break: keep-all;
-    overflow-wrap: normal;
-  }
-
-  /* Holdings lifecycle summary:
-     preserve typography and keep all seven items on one line. */
-  .summary-list {
-    display: grid;
-    grid-template-columns: repeat(7, max-content);
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    gap: 0;
-    white-space: nowrap;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-  }
-
-  .summary-list::-webkit-scrollbar {
-    display: none;
-  }
-
-  .summary-item {
-    min-width: 0;
-    white-space: nowrap;
   }
 }
