@@ -109,9 +109,10 @@ market-ai-dev/monitor/
 - K200/KOSPI는 `상태 · 세션 · 시간 · 현재가 · 등락률`을 표시하며, 내부 `FC_R / CMEC_R / JUC_R / SC_R` 서비스 코드나 instrument code는 사용자 화면에 노출하지 않습니다.
 - 보유종목은 `정상 / 시간외 / 장마감 / 대기 / 지연 / 오류`를 구분합니다.
 - `business_time`은 실제 `HHMMSS` 범위만 유효하며 `888888` 같은 값은 실제 시각처럼 표시하지 않습니다. 유효값이 없으면 모니터는 `observed_at`의 KST 시각을 fallback으로 사용할 수 있습니다.
-- Phone에서도 **K200/KOSPI 시장 카드와 보유종목 카드 모두 한 줄 2개(2열)**를 유지합니다. 760px 이하/420px 이하에서도 보유종목을 1열로 강제하지 않습니다.
+- Web/Tablet Monitor는 viewport의 남는 높이 때문에 카드/section row를 늘리지 않고 콘텐츠 자연 높이를 유지하며, iframe에서는 이 높이를 부모 Dashboard에 전달해 compact modal이 원본 배율로 맞춰질 수 있게 합니다.
+- Phone에서는 Monitor shell의 화면 바깥 padding을 0으로 두고 **K200/KOSPI 시장 카드와 보유종목 카드 모두 한 줄 2개(2열)**를 유지합니다. 760px 이하/420px 이하에서도 보유종목을 1열로 강제하지 않습니다.
 - Web Monitor polling 10초, Dashboard polling 10초, client lease 120초, dynamic KRX DB snapshot write throttle 30초는 서로 다른 contract입니다.
-- 투자 Dashboard는 Market AI 서버 연결이 확인된 동안에만 Web/Tablet Topbar와 Phone `관리` 메뉴에 공통 명칭 **`실시간 시세`** 진입점을 노출합니다. 이 진입점은 tailnet Web Monitor `https://node.tail60a98e.ts.net/monitor/`를 Dashboard 공통 modal shell 안의 최대 **1280×720** embedded monitor로 열며, Market AI 연결이 끊기면 진입점을 숨기고 열린 monitor modal도 닫습니다. 세부 버튼·메뉴·modal token/lifecycle 계약은 `investment-dashboard/main_dashboard_maintenance_handover.md`가 Source of Truth입니다.
+- 투자 Dashboard는 Market AI 서버 연결이 확인된 동안에만 Web/Tablet Topbar와 Phone `관리` 메뉴에 공통 명칭 **`실시간 시세`** 진입점을 노출합니다. 이 진입점은 tailnet Web Monitor `https://node.tail60a98e.ts.net/monitor/`를 Dashboard 공통 modal shell에서 엽니다. Web/Tablet은 iframe을 축소하지 않고 Monitor의 자연 콘텐츠 높이에 맞춘 compact·no-scroll modal을 사용하며, Phone은 외곽 여백 0의 fullscreen responsive modal을 사용합니다. Market AI 연결이 끊기면 진입점을 숨기고 열린 monitor modal도 닫습니다. 세부 버튼·메뉴·modal lifecycle 계약은 `investment-dashboard/main_dashboard_maintenance_handover.md`가 Source of Truth입니다.
 
 ---
 
@@ -447,7 +448,7 @@ Dashboard 원격 Tailscale 조회            ✅
 Local Suite Tailscale Serve 자가복구      ✅
 Remote GET-only proxy (:8002)           ✅
 Tailscale Web Monitor `/monitor/`         ✅
-Dashboard `실시간 시세` embedded Monitor    ✅ 1280×720 max
+Dashboard `실시간 시세` embedded Monitor    ✅ Web/Tablet compact · Phone fullscreen
 GitHub Pages CORS 허용                   ✅
 Python-free target runtime               ✅
 External Python process 불필요           ✅
