@@ -629,6 +629,17 @@ function resolveHoldingStatus(snapshot, marketState = "") {
 }
 
 function resolveKospiStatus(snapshot) {
+  const explicitStatus = normalizeStatus(
+    firstDefined(
+      snapshot?.state,
+      snapshot?.status,
+    ),
+  );
+
+  if (explicitStatus) {
+    return explicitStatus;
+  }
+
   if (!snapshot) {
     return STATUS.WARMING;
   }
