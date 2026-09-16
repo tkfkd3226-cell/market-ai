@@ -123,17 +123,54 @@ _internal/monitor/
 
 # 3. Runtime 업데이트 / 재빌드
 
-변경 대상에 따라 필요한 빌드만 수행합니다.
+정식 build는 `market-ai-dev`에서 수행하며 **성공한 build 결과를 sibling `market-ai`에 자동 반영**합니다. 일반적인 backend/Bridge/Local Suite 업데이트에서 dev 산출물을 사람이 운영 폴더로 수동 복사하지 않습니다.
 
-| 변경 대상 | 개발 빌드 | 운영 반영 |
+필수 배치:
+
+```text
+parent\
+├─ market-ai-dev\
+└─ market-ai\
+```
+
+공식 build/deploy는 두 폴더가 같은 부모의 형제인지, 이름이 정확한지, 운영 `market-ai\README.md`가 존재하는지 먼저 확인합니다.
+
+변경 대상에 따라 필요한 build만 수행합니다.
+
+| 변경 대상 | 실행할 개발 build | 성공 시 운영 반영 |
 |---|---|---|
-| Market AI backend | `build-market-ai.ps1` | `MarketAI.exe + _internal/` |
-| Web Monitor 정적 3파일만 | 재빌드 선택 | `_internal/monitor/` 3파일 직접 교체 가능 |
-| KIS eFriend Market Bridge | `build-kis-bridge-release.bat` | EXE/config + Interop DLL 세트 |
-| Investment Local Suite / 8002 proxy | `build-investment-local-suite.ps1` | `InvestmentLocalSuite.exe + _suite_internal/` |
-| Dashboard HTML/CSS/JS | Market AI 빌드 불필요 | Dashboard 저장소만 배포 |
+| Market AI backend | `build-market-ai.ps1` | `MarketAI.exe + _internal/` 자동 clean replacement |
+| Web Monitor 정적 3파일만 | 재빌드 선택 | `_internal/monitor/` 3파일 direct replacement fast-path 가능 |
+| KIS eFriend Market Bridge | `build-kis-bridge-release.bat` | EXE/config + Interop DLL 4파일 자동 반영 |
+| Investment Local Suite / 8002 proxy | `build-investment-local-suite.ps1` | `InvestmentLocalSuite.exe + _suite_internal/` 자동 clean replacement |
+| Dashboard HTML/CSS/JS | Market AI build 불필요 | Dashboard 저장소만 배포 |
 
-일반 빌드 배포에서 다음 운영 자원은 덮어쓰지 않습니다.
+### 자동 Runtime 종료
+
+build가 운영 component를 교체해야 할 때 `market-ai-dev/tools/runtime-stop.ps1`이 실행 중인 Local Suite에 트레이 메뉴 **`서버·Bridge 종료`**와 같은 종료 명령을 우선 요청합니다.
+
+```text
+Dashboard embedded HTTP / MarketAI / Bridge / Local Suite 종료
+eFriend Expert 유지
+8000 / 8001 / 8002 free 확인
+```
+
+관리자 권한 Local Suite 때문에 필요한 경우 stop helper만 UAC 승격될 수 있습니다. 정상 tray 종료가 되지 않을 때도 sibling `market-ai`에서 실행된 예상 프로세스만 fallback 대상으로 하며, eFriend는 종료 대상으로 삼지 않습니다. 8000/8001/8002를 무관한 프로그램이 사용 중이면 그 프로그램을 강제로 종료하지 않고 build가 실패합니다.
+
+build 완료 후 Runtime은 **자동 재시작되지 않습니다.** 여러 component를 재빌드한다면 모두 끝낸 뒤 평소 방식으로 `InvestmentLocalSuite.exe`를 한 번 실행합니다.
+
+### clean replacement / rollback
+
+공통 deploy helper는 기존 component를 TEMP rollback 위치에 백업하고 SHA-256 검증한 뒤 새 set을 반영합니다.
+
+- MarketAI `_internal/`은 기존 폴더를 **통째로 삭제한 뒤** 새 폴더를 복사합니다.
+- Local Suite `_suite_internal/`도 같은 방식으로 완전 교체합니다.
+- Bridge는 EXE/config/Interop DLL 4파일을 하나의 component set으로 취급합니다.
+- 배포 후 staging과 운영 set의 상대경로·파일 수·SHA-256을 검증합니다.
+- 배포 실패 시 partial 신규 set을 제거하고 검증된 이전 set 복원을 시도합니다.
+- 안전한 복원이 불가능하면 old/new 혼합 상태를 강행하지 않고 실패로 종료합니다.
+
+일반 build 배포에서 다음 운영 자원은 whitelist 밖이므로 덮어쓰지 않습니다.
 
 ```text
 db/market_signal.db
@@ -142,11 +179,37 @@ README.md
 .gitignore
 InvestmentLocalSuite.ico
 tools/close-efriend-tray.ps1
+start-local-server.log
 ```
 
-특히 dev의 `db/market_signal.db`를 운영 DB 위에 빌드 산출물처럼 복사하지 않습니다.
+특히 dev의 `db/market_signal.db`를 운영 DB 위에 build artifact처럼 복사하지 않습니다.
 
----
+### Build 성공 판정
+
+콘솔 마지막의 다음 형식이 나타나야 해당 component의 **build + 운영 배포까지 완료**된 것입니다.
+
+```text
+... BUILD + DEPLOY : SUCCESS
+Build         : PASS
+Runtime stop  : PASS
+Deploy verify : PASS
+Dev cleanup   : PASS
+```
+
+MarketAI에는 staged Smoke QA, Local Suite에는 Authenticode signature 검증 등 component별 추가 PASS가 표시됩니다. 중간 `[ERROR]`가 발생하거나 최종 SUCCESS가 없으면 운영 반영 완료로 판단하지 않습니다.
+
+### 전체 재빌드 권장 순서
+
+```text
+1. market-ai-dev\build-market-ai.ps1
+2. market-ai-dev\build-kis-bridge-release.bat
+3. market-ai-dev\build-investment-local-suite.ps1
+4. 세 build의 최종 SUCCESS 확인
+5. InvestmentLocalSuite.exe 실행
+6. 아래 운영 확인 절차 수행
+```
+
+세 component는 dev root의 다른 runtime 산출물을 prerequisite로 사용하지 않으므로 필요한 component만 독립적으로 재빌드할 수 있습니다.
 
 # 4. 원격 Dashboard / Tailscale
 
