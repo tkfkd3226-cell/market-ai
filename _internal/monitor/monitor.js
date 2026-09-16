@@ -659,7 +659,7 @@ function resolveK200Status(snapshot) {
 
   /*
    * K200 선물은 현물 KOSPI와 거래시간이 다르므로 별도 세션 상태를 사용한다.
-   * API는 살아 있어도 Bridge heartbeat가 끊겼으면 최근 값이라도 지연으로 본다.
+   * monitor_snapshots에 값이 남아 있어도 Bridge heartbeat가 끊기면 최근 값까지 지연으로 본다.
    */
   if (!state.bridgeConnected) {
     return STATUS.STALE;
@@ -752,6 +752,8 @@ function normalizeHolding(
       ),
     ),
 
+    // SC_R 원본 전일대비 금액만 사용한다. legacy durable snapshot에 값이 없으면
+    // 등락률에서 역산하지 않고 금액 표시를 비운다.
     changeAmount: toFiniteNumber(
       firstDefined(
         effectiveSnapshot?.change_amount,
@@ -1101,8 +1103,8 @@ function renderHoldings(
   }
 
   /*
-   * API ticker 배열 순서를
-   * 화면 카드 순서에도 그대로 반영한다.
+   * dashboard_tickers는 표시 universe와 순서의 authoritative 배열이다.
+   * 별도 정렬 없이 카드 DOM 순서도 같은 배열 순서로 맞춘다.
    */
   for (const item of holdings) {
     const card =
