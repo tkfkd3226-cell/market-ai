@@ -256,7 +256,7 @@ CORS는 browser origin 허용 규칙일 뿐 write 접근제어가 아닙니다. 
 Dashboard는 Market AI를 두 용도로 사용합니다.
 
 1. 현재 시장 / AI Signal
-2. 오늘 보유종목의 당일 현재가 overlay
+2. 현재 평가 대상 거래일 보유종목의 현재가 overlay
 
 주요 조회 API:
 
@@ -268,6 +268,8 @@ GET /api/bridge/kis-efriend/status
 GET /api/bridge/kis-efriend/quote-universe
 GET /api/market-data/krx-quotes?tickers=...&client_id=...
 ```
+
+`/api/market-data/snapshot`의 각 row에는 거래소 캘린더로 판정한 `input_status`가 포함됩니다. Dashboard 시장 카드는 이 상태를 우선 사용하므로 미국 휴장일·조기폐장일의 직전 확정값을 단순 경과시간만으로 `데이터 지연` 처리하지 않습니다.
 
 ## 5.1 보유종목 quote 의미
 
@@ -284,17 +286,17 @@ ETF
 15:30 이후   closed / 장마감
 ```
 
-오늘 날짜에서는 `usable=true` quote만 화면 평가 계산에 overlay합니다. unusable ticker만 저장 JSON 값으로 fallback하며 과거 날짜에는 오늘 quote를 overlay하지 않습니다.
+원칙적으로 KST 오늘에는 `usable=true` quote만 화면 평가 계산에 overlay합니다. 자정 이후 다음 KRX 정규장 시작 전에는 `observed_at`이 최근 완료 거래일과 일치하는 확정 `closed + usable` quote를 그 거래일 화면에만 이어서 적용합니다. unusable ticker만 저장 JSON 값으로 fallback하며 그보다 오래된 과거 날짜에는 Market AI quote를 overlay하지 않습니다.
 
-장마감 시 process-memory quote가 없더라도 다음 조건을 모두 만족하면 당일 KIS durable `MarketSnapshot`을 `closed + usable=true`로 복원할 수 있습니다.
+장마감 시 process-memory quote가 없더라도 다음 조건을 모두 만족하면 최근 완료 KRX 거래일의 KIS durable `MarketSnapshot`을 `closed + usable=true`로 복원할 수 있습니다.
 
-- 현재 KST 날짜의 exact `kis-efriend:SC_R:<ticker>` snapshot
+- 현재 시각 기준 최근 완료 KRX 거래일의 exact `kis-efriend:SC_R:<ticker>` snapshot
 - 해당 ticker가 `closed`
 - Bridge connected
 - subscription 정상
 - 이전 stream 장애 때문에 fresh tick을 다시 요구하는 상태가 아님
 
-전일 snapshot, Yahoo/proxy source, `open/extended`, subscription 오류/미구독, 장애 복구 후 새 tick 대기 상태는 이 fallback을 사용하지 않습니다.
+다음 정규장 시작 뒤의 전일 값·최근 완료 거래일보다 오래된 snapshot, Yahoo/proxy source, `open/extended`, subscription 오류/미구독, 장애 복구 후 새 tick 대기 상태는 이 fallback을 사용하지 않습니다.
 
 Market AI overlay는 화면용이며 `prices.json`, 성과 snapshot, Pension JSON, GAS에 저장하지 않습니다.
 
@@ -419,7 +421,7 @@ Local Suite 종료 contract:
 | KIS KOSPI / KOSPI200 선물 | ✅ |
 | 동적 KRX 보유종목 quote / subscription health | ✅ |
 | ETF 장마감 / 개별주식 시간외·장마감 상태 | ✅ |
-| Dashboard 당일 valuation overlay | ✅ |
+| Dashboard 오늘·제한된 직전 완료 거래일 valuation overlay | ✅ |
 | Web Monitor / Tailscale Monitor | ✅ |
 | Remote GET-only proxy | ✅ |
 | Python-free target runtime | ✅ |
