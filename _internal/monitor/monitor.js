@@ -371,6 +371,8 @@ function firstDefined(...values) {
 
 function getDashboardTickers(payload) {
   const source =
+    payload?.dashboard_display_tickers ??
+    payload?.bridge_universe?.dashboard_display_tickers ??
     payload?.dashboard_tickers ??
     payload?.bridge_universe?.dashboard_tickers ??
     [];
@@ -1103,8 +1105,8 @@ function renderHoldings(
   }
 
   /*
-   * dashboard_tickers는 표시 universe와 순서의 authoritative 배열이다.
-   * 별도 정렬 없이 카드 DOM 순서도 같은 배열 순서로 맞춘다.
+   * dashboard_display_tickers가 있으면 Dashboard 현황표와 같은 표시 순서를 따른다.
+   * 구버전 backend에서는 dashboard_tickers를 fallback으로 쓰며 별도 정렬은 하지 않는다.
    */
   for (const item of holdings) {
     const card =
