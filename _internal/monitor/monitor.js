@@ -12,6 +12,9 @@ const STALE_AFTER_MS = 90_000;
 
 const THEME_STORAGE_KEY = "market-ai-monitor-theme";
 const EMBED_SIZE_MESSAGE = "market-ai-monitor:content-size";
+const EMBED_THEME_READY_MESSAGE = "market-ai-monitor:theme-ready";
+const EMBED_THEME_STATE_MESSAGE = "market-ai-monitor:theme-state";
+const EMBED_THEME_CHANGE_MESSAGE = "market-ai-monitor:theme-change";
 
 const STATUS = Object.freeze({
   LIVE: "live",
@@ -1381,28 +1384,38 @@ function getPreferredTheme() {
     : "light";
 }
 
-function applyTheme(theme) {
+function applyTheme(theme, { notifyParent = false } = {}) {
+  const normalizedTheme =
+    theme === "dark" ? "dark" : "light";
+
   dom.root.dataset.theme =
-    theme;
+    normalizedTheme;
 
   localStorage.setItem(
     THEME_STORAGE_KEY,
-    theme,
+    normalizedTheme,
   );
 
   dom.themeToggle.setAttribute(
     "aria-label",
-    theme === "dark"
+    normalizedTheme === "dark"
       ? "라이트 테마로 변경"
       : "다크 테마로 변경",
   );
 
   dom.themeToggle.setAttribute(
     "title",
-    theme === "dark"
+    normalizedTheme === "dark"
       ? "라이트 테마로 변경"
       : "다크 테마로 변경",
   );
+
+  if (notifyParent) {
+    publishEmbeddedThemeMessage(
+      EMBED_THEME_CHANGE_MESSAGE,
+      normalizedTheme,
+    );
+  }
 }
 
 function toggleTheme() {
@@ -1410,6 +1423,7 @@ function toggleTheme() {
     dom.root.dataset.theme === "dark"
       ? "light"
       : "dark",
+    { notifyParent: true },
   );
 }
 
@@ -1436,6 +1450,48 @@ function startClock() {
 /* =========================================================
    16. Embedded Host Bridge
    ========================================================= */
+
+function publishEmbeddedThemeMessage(type, theme) {
+  if (window.parent === window) {
+    return;
+  }
+
+  window.parent.postMessage(
+    { type, theme },
+    "*",
+  );
+}
+
+function publishEmbeddedThemeReady() {
+  if (window.parent === window) {
+    return;
+  }
+
+  window.parent.postMessage(
+    { type: EMBED_THEME_READY_MESSAGE },
+    "*",
+  );
+}
+
+function handleEmbeddedThemeMessage(event) {
+  if (
+    window.parent === window ||
+    event.source !== window.parent
+  ) {
+    return;
+  }
+
+  const payload = event.data;
+  if (
+    !payload ||
+    payload.type !== EMBED_THEME_STATE_MESSAGE ||
+    (payload.theme !== "light" && payload.theme !== "dark")
+  ) {
+    return;
+  }
+
+  applyTheme(payload.theme);
+}
 
 let embedSizeFrame = 0;
 
@@ -1488,6 +1544,11 @@ function bindEvents() {
     toggleTheme,
   );
 
+  window.addEventListener(
+    "message",
+    handleEmbeddedThemeMessage,
+  );
+
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
       startPolling();
@@ -1512,6 +1573,7 @@ function bootstrap() {
   );
 
   bindEvents();
+  publishEmbeddedThemeReady();
   observeEmbeddedContentSize();
   startClock();
   startPolling();
