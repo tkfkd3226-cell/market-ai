@@ -240,6 +240,20 @@ function formatChangePct(value) {
   return `${sign}${number.toFixed(2)}%`;
 }
 
+function formatChangeAmount(value) {
+  const number = toFiniteNumber(value);
+
+  if (number === null) {
+    return "";
+  }
+
+  const sign = number > 0 ? "+" : "";
+
+  return `${sign}${new Intl.NumberFormat("ko-KR", {
+    maximumFractionDigits: 2,
+  }).format(number)}`;
+}
+
 function resolveTrend(value) {
   const number = toFiniteNumber(value);
 
@@ -738,6 +752,13 @@ function normalizeHolding(
       ),
     ),
 
+    changeAmount: toFiniteNumber(
+      firstDefined(
+        effectiveSnapshot?.change_amount,
+        effectiveSnapshot?.changeAmount,
+      ),
+    ),
+
     businessTime:
       resolveBusinessTime(effectiveSnapshot),
 
@@ -826,6 +847,7 @@ function updateStatusBadge(
 function updateTrendElement(
   element,
   value,
+  amount = null,
 ) {
   if (!element) {
     return;
@@ -834,8 +856,14 @@ function updateTrendElement(
   element.dataset.trend =
     resolveTrend(value);
 
-  element.textContent =
+  const pctText =
     formatChangePct(value);
+  const amountText =
+    formatChangeAmount(amount);
+
+  element.textContent = amountText
+    ? `${pctText}  ${amountText}`
+    : pctText;
 }
 
 function updateMarketCard(
@@ -1009,6 +1037,7 @@ function updateHoldingCard(
   updateTrendElement(
     change,
     item.changePct,
+    item.changeAmount,
   );
 
   if (time) {
