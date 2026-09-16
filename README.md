@@ -426,7 +426,7 @@ Local Suite 종료 contract:
 | Backtest / Calibration | ✅ |
 | OpenAI 뉴스 분석 | 선택 기능 |
 
-현재 Signal Engine version은 `stage6_rule_v7`입니다. 정확한 산식·weight·calibration contract는 개발 handover를 따릅니다.
+현재 Signal Engine version은 `stage6_rule_v8`입니다. 정확한 산식·weight·calibration contract는 개발 handover를 따릅니다.
 
 ---
 
