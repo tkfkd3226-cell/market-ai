@@ -159,18 +159,11 @@ eFriend Expert 유지
 
 build 완료 후 Runtime은 **자동 재시작되지 않습니다.** 여러 component를 재빌드한다면 모두 끝낸 뒤 평소 방식으로 `InvestmentLocalSuite.exe`를 한 번 실행합니다.
 
-### clean replacement / rollback
+### 배포 안전 경계
 
-공통 deploy helper는 기존 component를 TEMP rollback 위치에 백업하고 SHA-256 검증한 뒤 새 set을 반영합니다.
+정식 build는 component를 검증된 단위로 교체하고 배포 결과를 검증합니다. 실패 시 old/new 파일을 섞어 성공으로 처리하지 않습니다. 세부 rollback·SHA-256·staging 구현은 개발 handover가 소유합니다.
 
-- MarketAI `_internal/`은 기존 폴더를 **통째로 삭제한 뒤** 새 폴더를 복사합니다.
-- Local Suite `_suite_internal/`도 같은 방식으로 완전 교체합니다.
-- Bridge는 EXE/config/Interop DLL 4파일을 하나의 component set으로 취급합니다.
-- 배포 후 staging과 운영 set의 상대경로·파일 수·SHA-256을 검증합니다.
-- 배포 실패 시 partial 신규 set을 제거하고 검증된 이전 set 복원을 시도합니다.
-- 안전한 복원이 불가능하면 old/new 혼합 상태를 강행하지 않고 실패로 종료합니다.
-
-일반 build 배포에서 다음 운영 자원은 whitelist 밖이므로 덮어쓰지 않습니다.
+다음 운영 자원은 build artifact가 아니므로 일반 component 배포가 덮어쓰지 않습니다.
 
 ```text
 db/market_signal.db
@@ -182,7 +175,8 @@ tools/close-efriend-tray.ps1
 start-local-server.log
 ```
 
-특히 dev의 `db/market_signal.db`를 운영 DB 위에 build artifact처럼 복사하지 않습니다.
+특히 dev의 `db/market_signal.db`를 운영 DB 위에 복사하지 않습니다.
+
 
 ### Build 성공 판정
 
@@ -288,15 +282,7 @@ ETF
 
 원칙적으로 KST 오늘에는 `usable=true` quote만 화면 평가 계산에 overlay합니다. 자정 이후 다음 KRX 정규장 시작 전에는 `observed_at`이 최근 완료 거래일과 일치하는 확정 `closed + usable` quote를 그 거래일 화면에만 이어서 적용합니다. unusable ticker만 저장 JSON 값으로 fallback하며 그보다 오래된 과거 날짜에는 Market AI quote를 overlay하지 않습니다.
 
-장마감 시 process-memory quote가 없더라도 다음 조건을 모두 만족하면 최근 완료 KRX 거래일의 KIS durable `MarketSnapshot`을 `closed + usable=true`로 복원할 수 있습니다.
-
-- 현재 시각 기준 최근 완료 KRX 거래일의 exact `kis-efriend:SC_R:<ticker>` snapshot
-- 해당 ticker가 `closed`
-- Bridge connected
-- subscription 정상
-- 이전 stream 장애 때문에 fresh tick을 다시 요구하는 상태가 아님
-
-다음 정규장 시작 뒤의 전일 값·최근 완료 거래일보다 오래된 snapshot, Yahoo/proxy source, `open/extended`, subscription 오류/미구독, 장애 복구 후 새 tick 대기 상태는 이 fallback을 사용하지 않습니다.
+장마감·재시작에서는 backend가 신뢰 가능한 최근 완료 KRX 거래일의 KIS snapshot을 `closed + usable=true`로 복원할 수 있습니다. 반대로 다음 정규장 시작 뒤의 전일 값, 더 오래된 snapshot, 비-KIS source, subscription/fresh-tick 조건을 충족하지 못한 값은 current quote로 복원하지 않습니다. 정확한 승격 조건은 `market_ai_project_handover.md`가 소유합니다.
 
 Market AI overlay는 화면용이며 `prices.json`, 성과 snapshot, Pension JSON, GAS에 저장하지 않습니다.
 
