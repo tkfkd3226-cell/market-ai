@@ -101,10 +101,10 @@ _internal/monitor/
 - process-memory 최신값을 우선하고 장마감·재시작 복원에서만 durable `MarketSnapshot`을 fallback합니다.
 - K200/KOSPI와 보유종목은 사용자 의미의 상태·세션·시간·현재가·등락률만 표시하고 내부 TR/service code는 화면에 노출하지 않습니다.
 - Web/Tablet은 남는 viewport 높이 때문에 카드가 늘어나지 않고 콘텐츠 자연 높이를 유지합니다.
-- **Monitor 페이지 자체**는 Phone viewport에서 바깥 shell padding 0, 시장 카드 2열, 보유종목 카드 2열을 유지합니다. 이는 standalone/iframe 내부 Monitor 레이아웃 계약이며 Dashboard modal의 외곽 여백 계약과는 별개입니다. 좁은 폭에서도 카드 내부 텍스트가 부모 폭을 밀어내지 않아야 합니다.
+- **Monitor 페이지 자체**는 Phone viewport에서 시장 카드 2열, 보유종목 카드 2열을 유지하며 좁은 폭에서도 카드 내부 텍스트가 부모 폭을 밀어내지 않아야 합니다. 정확한 spacing·padding 값은 `monitor.css`를 기준으로 합니다.
 - Dashboard embedded Monitor에서는 외부 닫기 버튼과 theme toggle이 겹치지 않게 header tool 영역을 확보합니다.
 
-투자 Dashboard의 `실시간 시세`는 Market AI 연결이 확인된 동안에만 노출됩니다. Web/Tablet은 Monitor content height를 먼저 받아 원본 배율의 compact modal로 표시합니다. Phone은 KRX 등 Main action modal과 같은 외곽 여백·edge/radius token을 상속하는 responsive modal로 같은 Monitor를 열며, **embedded Monitor shell의 card padding은 세로/가로폰 모두 5px**로 유지합니다. Phone Landscape의 일반 action modal 24px padding이 이 5px 계약을 덮지 않아야 합니다.
+투자 Dashboard의 `실시간 시세`는 Market AI 연결이 확인된 동안에만 노출됩니다. Web/Tablet은 Monitor content height를 받아 compact modal로 표시하고, Phone은 Main action modal의 responsive 외곽 geometry를 상속해 같은 Monitor를 엽니다. embedded Monitor의 정확한 spacing·radius·padding은 Dashboard CSS와 `market-ai-dev`의 Monitor UI contract를 기준으로 합니다.
 
 ### Monitor-only 빠른 운영 반영
 
